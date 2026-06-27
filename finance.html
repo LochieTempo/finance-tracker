@@ -370,7 +370,8 @@ input[type=number]{-moz-appearance:textfield;}
     <p class="modal-hint" style="margin-bottom:14px">Set your current balances. FY savings logged in the tracker are added automatically on top. Update Pokémon manually whenever you check your tracker.</p>
     <label>Cash / Savings Account ($)</label><input type="number" id="nw-savings" placeholder="e.g. 12500" step="0.01" inputmode="decimal">
     <label>Stocks / Investments ($)</label><input type="number" id="nw-stocks" placeholder="e.g. 18000" step="0.01" inputmode="decimal">
-    <label>Pokémon Sealed — Current Est. Value ($)</label><input type="number" id="nw-pokemon" placeholder="e.g. 8000" step="0.01" inputmode="decimal">
+    <label>Pokémon Sealed — Est. Value ($)</label>
+    <input type="number" id="nw-pokemon" placeholder="e.g. 8000" step="0.01" inputmode="decimal">
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-networth')">Cancel</button>
       <button class="btn btn-primary" onclick="saveNetWorth()">Save</button>
@@ -401,70 +402,13 @@ function todayISO(){return new Date().toISOString().split('T')[0];}
 function uid(){return Math.random().toString(36).slice(2,9);}
 function currentFnIndex(){const today=new Date();today.setHours(0,0,0,0);for(let i=NUM_FN-1;i>=0;i--){if(today>=fnStartDate(i))return i;}return 0;}
 function currentWeekOfFn(fn){const today=new Date();today.setHours(0,0,0,0);const w2=new Date(fnStartDate(fn));w2.setDate(w2.getDate()+7);return today>=w2?2:1;}
-// ─── AUSTRALIAN TAX CALCULATIONS (FY 2026-27) ──────────────────────────────
-// Gross is the fortnightly amount; annualise → calculate → divide by 26
-
-function annualiseGross(fnGross){return fnGross*26;}
-
-// Income tax on annual income (2026-27 brackets: 15% rate on second bracket)
-function calcAnnualIncomeTax(annual){
-  if(annual<=18200) return 0;
-  if(annual<=45000) return (annual-18200)*0.15;
-  if(annual<=135000) return 4170+(annual-45000)*0.30;
-  if(annual<=190000) return 31170+(annual-135000)*0.37;
-  return 51520+(annual-190000)*0.45;
-}
-
-// Low Income Tax Offset (LITO)
-function calcLITO(annual){
-  if(annual<=37500) return 700;
-  if(annual<=45000) return Math.max(0, 700-(annual-37500)*0.05);
-  if(annual<=66667) return Math.max(0, 325-(annual-45000)*0.015);
-  return 0;
-}
-
-// Medicare Levy 2% (with shade-in zone: exempt < ~$29,207, shade-in to ~$36,509)
-function calcMedicare(annual){
-  const SHADE_LOW=29207, SHADE_HIGH=36509;
-  if(annual<=SHADE_LOW) return 0;
-  if(annual<=SHADE_HIGH) return (annual-SHADE_LOW)*0.10;
-  return annual*0.02;
-}
-
-// Total annual tax + medicare (after LITO)
-function calcAnnualTax(annual){
-  const incomeTax = Math.max(0, calcAnnualIncomeTax(annual)-calcLITO(annual));
-  return incomeTax + calcMedicare(annual);
-}
-
-// HECS-HELP annual repayment (FY 2026-27, threshold $69,528)
-// Marginal system: 15c per $1 over $69,528 up to $125,000;
-// $8,320.80 + 17c per $1 over $125,000 up to $179,285;
-// 10% of total income at $179,286+
-function calcAnnualHECS(annual){
-  const THRESH=69528;
-  if(annual<=THRESH) return 0;
-  if(annual<=125000) return (annual-THRESH)*0.15;
-  if(annual<=179285) return (125000-THRESH)*0.15+(annual-125000)*0.17;
-  return annual*0.10;
-}
-
-// Fortnightly equivalents (÷ 26)
-function calcFnTax(fnGross){
-  if(!fnGross) return 0;
-  return +(calcAnnualTax(fnGross*26)/26).toFixed(2);
-}
-function calcFnHECS(fnGross){
-  if(!fnGross) return 0;
-  return +(calcAnnualHECS(fnGross*26)/26).toFixed(2);
-}
 
 const CATS=[
-  {id:'gross',label:'Gross (Fortnightly)',section:'income',type:'input'},
-  {id:'tax',label:'Income Tax + Medicare',section:'income',type:'calc',fn:d=>calcFnTax(f(d.gross))},
-  {id:'hecs',label:'HECS-HELP (est.)',section:'income',type:'calc',fn:d=>calcFnHECS(f(d.gross))},
-  {id:'super',label:'Super (12%)',section:'income',type:'calc',fn:d=>+(f(d.gross)*0.12).toFixed(2)},
-  {id:'net',label:'Net Income',section:'income',type:'calc',fn:d=>f(d.gross)-calcFnTax(f(d.gross))-calcFnHECS(f(d.gross))},
+  {id:'gross',label:'Gross Pay',section:'income',type:'input'},
+  {id:'tax',label:'Tax Withheld',section:'income',type:'input'},
+  {id:'hecs',label:'HECS Withheld',section:'income',type:'input'},
+  {id:'super',label:'Super (12.75%)',section:'income',type:'calc',fn:d=>+(f(d.gross)*0.1275).toFixed(2)},
+  {id:'net',label:'Net Income',section:'income',type:'calc',fn:d=>f(d.gross)-f(d.tax)-f(d.hecs)},
   {id:'rent',label:'Rent + Phone',section:'must',type:'input'},
   {id:'car_sav',label:'Car Savings',section:'must',type:'input'},
   {id:'savings',label:'Bank Savings',section:'must',type:'input'},
@@ -487,7 +431,7 @@ const CATS=[
   {id:'total_want',label:'Total Want',section:'want',type:'calc',fn:d=>f(d.work_cons)+f(d.add_spend_w1)+f(d.add_spend_w2)+f(d.pokemon_w1)+f(d.pokemon_w2)},
 ];
 function f(v){return parseFloat(v)||0;}
-function netIncome(d){return f(d.gross)-calcFnTax(f(d.gross))-calcFnHECS(f(d.gross));}
+function netIncome(d){return f(d.gross)-f(d.tax)-f(d.hecs);}
 function totalMust(d){return f(d.rent)+f(d.car_sav)+f(d.savings)+f(d.invested)+f(d.payback);}
 function totalWill(d){return f(d.coaching)+f(d.recur_bills)+f(d.fuel)+f(d.grocery_w1)+f(d.grocery_w2)+f(d.nec_w1)+f(d.nec_w2);}
 function totalWant(d){return f(d.work_cons)+f(d.add_spend_w1)+f(d.add_spend_w2)+f(d.pokemon_w1)+f(d.pokemon_w2);}
@@ -502,7 +446,7 @@ function getOther(){try{return JSON.parse(localStorage.getItem('other'))||[];}ca
 function setOther(d){localStorage.setItem('other',JSON.stringify(d));}
 function getGoals(){try{return JSON.parse(localStorage.getItem('goals'))||defaultGoals();}catch{return defaultGoals();}}
 function setGoals(d){localStorage.setItem('goals',JSON.stringify(d));}
-function getNW(){try{return JSON.parse(localStorage.getItem('nw'))||{savings:0,stocks:0,pokemon:0};}catch{return{savings:0,stocks:0,pokemon:0};}}
+function getNW(){try{return JSON.parse(localStorage.getItem('nw'))||{savings:0,stocks:0,pokemon:0};}catch(e){return{savings:0,stocks:0,pokemon:0};}}
 function setNW(d){localStorage.setItem('nw',JSON.stringify(d));}
 function defaultGoals(){return[{id:uid(),name:'Emergency Fund',target:10000,current:0},{id:uid(),name:'Holiday / Travel',target:5000,current:0},{id:uid(),name:'Car Fund',target:5000,current:0}];}
 function defaultRecurring(){return{subs:[{id:uid(),name:'Kayo Sports',freq:'Monthly',cost:40,due:'2026-07-01',keep:'YES',notes:'NRL / AFL'},{id:uid(),name:'Spotify',freq:'Monthly',cost:27.99,due:'2026-07-01',keep:'YES',notes:'Clarify family split'},{id:uid(),name:'Microsoft Game Pass',freq:'Monthly',cost:16.95,due:'2026-07-01',keep:'YES',notes:''},{id:uid(),name:'Microsoft 365',freq:'Monthly',cost:16,due:'2026-07-01',keep:'YES',notes:'Keep'},{id:uid(),name:'Minecraft Realms',freq:'Monthly',cost:11.19,due:'2026-07-01',keep:'YES',notes:''},{id:uid(),name:'Amazon Prime',freq:'Monthly',cost:9.99,due:'2026-07-01',keep:'REVIEW',notes:'Consider cancelling'},{id:uid(),name:'Gym Membership',freq:'Weekly',cost:16.24,due:'2026-07-06',keep:'YES',notes:'~$64.96/month'},{id:uid(),name:'Coaching',freq:'Weekly',cost:101.36,due:'2026-07-01',keep:'YES',notes:'Review if gym changes'},{id:uid(),name:'TradingView Premium',freq:'Annual',cost:null,due:'2027-03-01',keep:'YES',notes:'Maybe tax write-off'}],cons:[{id:uid(),name:'Haircut',cost:65,days:21,last:null,notes:''},{id:uid(),name:'Face Wash',cost:40,days:90,last:null,notes:''},{id:uid(),name:'Glutamine',cost:67.5,days:90,last:null,notes:''},{id:uid(),name:'Fish Oil',cost:69,days:90,last:null,notes:''},{id:uid(),name:'Leucine',cost:25,days:45,last:null,notes:''},{id:uid(),name:'Electrolytes',cost:45,days:36,last:null,notes:''},{id:uid(),name:'K2 + D3',cost:43,days:90,last:null,notes:''},{id:uid(),name:'Turmeric',cost:15,days:62,last:null,notes:''},{id:uid(),name:'Probiotics',cost:60,days:30,last:null,notes:''},{id:uid(),name:'Chop',cost:145,days:14,last:null,notes:'Fortnightly — set a spend goal'}]};}
@@ -514,7 +458,9 @@ function changeFn(d){const n=currentFn+d;if(n<0||n>=NUM_FN)return;currentFn=n;do
 const SMETA={income:{label:'INCOME',cls:'income'},must:{label:'MUST SPEND',cls:'must'},will:{label:'WILL SPEND',cls:'will'},want:{label:'WANT TO SPEND',cls:'want'}};
 function secTotal(s,d){if(s==='income')return fmtAUD(netIncome(d));if(s==='must')return fmtAUD(totalMust(d));if(s==='will')return fmtAUD(totalWill(d));if(s==='want')return fmtAUD(totalWant(d));return'';}
 function renderTracker(){
-  const data=getTracker(currentFn),fn=currentFn;
+  const fn=currentFn;
+  let data=getTracker(fn);
+  const CARRY_FIELDS=['tax','hecs','rent','car_sav','savings','invested','payback','coaching','recur_bills'];const needsFill=CARRY_FIELDS.some(k=>!data[k]);if(needsFill){for(let i=fn-1;i>=0;i--){const p=getTracker(i);if(CARRY_FIELDS.some(k=>p[k])){const patch={};CARRY_FIELDS.forEach(k=>{if(!data[k]&&p[k])patch[k]=p[k];});data={...data,...patch};break;}}}
   const rollover=rolloverUpTo(fn),remain=remaining(data),pool=remain+rollover;
   const w1s=fnStartDate(fn),w2s=new Date(w1s);w2s.setDate(w2s.getDate()+7);
   const w1l='Wk 1 · '+fmtShort(w1s),w2l='Wk 2 · '+fmtShort(w2s);
@@ -536,7 +482,7 @@ function renderTracker(){
       const ic=ip?'w-input pokemon-input':'w-input';
       html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="number" step="0.01" inputmode="decimal" value="'+( data[w1id]||'')+'" onchange="saveField('+fn+',\''+w1id+'\',this.value)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="number" step="0.01" inputmode="decimal" value="'+( data[w2id]||'')+'" onchange="saveField('+fn+',\''+w2id+'\',this.value)"></div></div></div>';
     } else {
-      html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+'</span><input class="w-input single" type="number" step="0.01" inputmode="decimal" value="'+( data[cat.id]||'')+'" onchange="saveField('+fn+',\''+cat.id+'\',this.value)"></div>';
+      const _pslip=cat.id==='tax'||cat.id==='hecs';html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+(_pslip?' <span style="font-size:9px;color:var(--dim);font-weight:400">payslip</span>':'')+' </span><input class="w-input single" type="number" step="0.01" inputmode="decimal" value="'+( data[cat.id]||'')+'" onchange="saveField('+fn+',\''+cat.id+'\',this.value)"></div>';
     }
   }
   html+='</div>';
@@ -553,12 +499,12 @@ function saveField(fn,id,val){const data=getTracker(fn);data[id]=val;setTracker(
 function updateCalcs(fn){
   const data=getTracker(fn),rollover=rolloverUpTo(fn),remain=remaining(data),pool=remain+rollover;
   document.querySelectorAll('.tracker-section-hdr').forEach(h=>{const c=h.classList[1],sp=h.querySelector('span:last-child');if(!sp)return;if(c==='income')sp.textContent=fmtAUD(netIncome(data));if(c==='must')sp.textContent=fmtAUD(totalMust(data));if(c==='will')sp.textContent=fmtAUD(totalWill(data));if(c==='want')sp.textContent=fmtAUD(totalWant(data));});
-  document.querySelectorAll('.tracker-row input[readonly]').forEach(inp=>{const lbl=inp.closest('.tracker-row')?.querySelector('.tracker-row-label')?.textContent?.trim();if(!lbl)return;if(lbl==='Income Tax + Medicare')inp.value=fmtAUD(calcFnTax(f(data.gross)));if(lbl==='HECS-HELP (est.)')inp.value=fmtAUD(calcFnHECS(f(data.gross)));if(lbl==='Super (12%)')inp.value=fmtAUD(+(f(data.gross)*0.12).toFixed(2));if(lbl==='Net Income')inp.value=fmtAUD(netIncome(data));if(lbl==='Total Must')inp.value=fmtAUD(totalMust(data));if(lbl==='Total Will')inp.value=fmtAUD(totalWill(data));if(lbl==='Total Want')inp.value=fmtAUD(totalWant(data));if(lbl==='Total Expenses')inp.value=fmtAUD(totalExp(data));if(lbl==='Remaining This FN'){inp.value=fmtAUD(remain);inp.className=inp.className.replace(/val-\w+/g,remain>=0?'val-green':'val-red');}if(lbl==='Rollover from Prev')inp.value=fmtAUD(rollover);if(lbl==='Available Pool')inp.value=fmtAUD(pool);});
+  document.querySelectorAll('.tracker-row input[readonly]').forEach(inp=>{const lbl=inp.closest('.tracker-row')?.querySelector('.tracker-row-label')?.textContent?.trim();if(!lbl)return;if(lbl==='Super (12.75%)')inp.value=fmtAUD(+(f(data.gross)*0.1275).toFixed(2));if(lbl==='Net Income')inp.value=fmtAUD(netIncome(data));if(lbl==='Total Must')inp.value=fmtAUD(totalMust(data));if(lbl==='Total Will')inp.value=fmtAUD(totalWill(data));if(lbl==='Total Want')inp.value=fmtAUD(totalWant(data));if(lbl==='Total Expenses')inp.value=fmtAUD(totalExp(data));if(lbl==='Remaining This FN'){inp.value=fmtAUD(remain);inp.className=inp.className.replace(/val-\w+/g,remain>=0?'val-green':'val-red');}if(lbl==='Rollover from Prev')inp.value=fmtAUD(rollover);if(lbl==='Available Pool')inp.value=fmtAUD(pool);});
 }
 function openQuickAdd(){const fn=currentFnIndex(),wk=currentWeekOfFn(fn);const cat=document.getElementById('qa-cat');cat.value=wk===1?'add_spend_w1':'add_spend_w2';document.getElementById('qa-hint').textContent='Auto-selected Week '+wk+' based on today.';openModal('modal-quickadd');}
 function submitQuickAdd(){const desc=document.getElementById('qa-desc').value.trim(),amount=parseFloat(document.getElementById('qa-amount').value)||0,catKey=document.getElementById('qa-cat').value;if(!desc){toast('Enter a description');return;}if(!amount){toast('Enter an amount');return;}const fn=currentFnIndex(),data=getTracker(fn);data[catKey]=(f(data[catKey])+amount).toFixed(2);const nk=catKey.endsWith('_w1')?'notes_w1':'notes_w2';data[nk]=data[nk]?data[nk]+'. '+desc:desc;setTracker(fn,data);document.getElementById('qa-desc').value='';document.getElementById('qa-amount').value='';closeModal('modal-quickadd');if(currentFn===fn)renderTracker();toast('✓ '+fmtAUD(amount)+' — '+desc);}
 function calcNetWorth(){const nw=getNW();const base={savings:f(nw.savings),stocks:f(nw.stocks),pokemon:f(nw.pokemon)};let fySav=0;for(let i=0;i<NUM_FN;i++)fySav+=f(getTracker(i).savings)+f(getTracker(i).invested);return{total:base.savings+base.stocks+base.pokemon+fySav,...base,fySav};}
-function openNetWorthModal(){const nw=getNW();document.getElementById('nw-savings').value=nw.savings||'';;document.getElementById('nw-stocks').value=nw.stocks||'';;document.getElementById('nw-pokemon').value=nw.pokemon||'';;openModal('modal-networth');}
+function openNetWorthModal(){const nw=getNW();document.getElementById('nw-savings').value=nw.savings||'';document.getElementById('nw-stocks').value=nw.stocks||'';document.getElementById('nw-pokemon').value=nw.pokemon||'';openModal('modal-networth');}
 function saveNetWorth(){setNW({savings:f(document.getElementById('nw-savings').value),stocks:f(document.getElementById('nw-stocks').value),pokemon:f(document.getElementById('nw-pokemon').value)});closeModal('modal-networth');renderSummary();toast('Net worth updated');}
 function renderSummary(){
   const fn=currentFnIndex(),data=getTracker(fn),net=netIncome(data),exp=totalExp(data),rem=remaining(data),rollover=rolloverUpTo(fn),pool=rem+rollover,saved=f(data.savings),nw=calcNetWorth();
@@ -574,6 +520,7 @@ function renderSummary(){
   html+='<div class="section-label">Savings Goals</div><div class="card">';for(const g of goals){const pct=g.target>0?Math.min(g.current/g.target,1):0;html+='<div class="goal-row"><div class="goal-header"><span class="goal-name">'+g.name+'</span><span class="goal-amounts">'+fmtAUD(g.current)+' / '+fmtAUD(g.target)+'</span></div><div class="progress-track"><div class="progress-fill" style="width:'+(pct*100)+'%"></div></div><div class="goal-footer"><span class="goal-remaining">'+fmtAUD(g.target-g.current)+' to go</span><span class="goal-pct">'+(pct*100).toFixed(0)+'%</span></div></div>';}
   html+='<button class="btn-sm ghost" style="width:100%;margin-top:4px" onclick="openGoalsModal()">Edit Goals</button></div>';
   document.getElementById('summary-body').innerHTML=html;
+
 }
 function openGoalsModal(){const goals=getGoals();let html='';goals.forEach((g,i)=>{html+='<div style="padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--border)"><div style="font-size:12px;color:var(--white);font-weight:600;margin-bottom:10px">'+g.name+'</div><label>Target ($)</label><input type="number" id="gt-'+i+'" value="'+g.target+'" inputmode="decimal"><label>Current Balance ($)</label><input type="number" id="gc-'+i+'" value="'+g.current+'" inputmode="decimal"></div>';});document.getElementById('goals-edit-body').innerHTML=html;openModal('modal-goals');}
 function saveGoals(){const goals=getGoals();goals.forEach((g,i)=>{g.target=f(document.getElementById('gt-'+i)?.value);g.current=f(document.getElementById('gc-'+i)?.value);});setGoals(goals);closeModal('modal-goals');renderSummary();toast('Goals saved');}
