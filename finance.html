@@ -108,8 +108,8 @@ nav button.active .icon{filter:drop-shadow(0 0 4px var(--gold));}
 .notes-area textarea{width:100%;background:none;border:none;color:var(--silver);font-size:11px;resize:none;outline:none;font-family:var(--font);line-height:1.5;min-height:44px;}
 .fab{position:fixed;bottom:74px;right:calc(50% - 228px);width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--gold-l),var(--gold-d));border:none;color:#000;font-size:26px;font-weight:300;cursor:pointer;box-shadow:0 4px 20px rgba(201,168,76,0.45);display:flex;align-items:center;justify-content:center;z-index:99;transition:transform 0.15s,box-shadow 0.15s;-webkit-tap-highlight-color:transparent;}
 .fab:active{transform:scale(0.92);box-shadow:0 2px 10px rgba(201,168,76,0.3);}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:none;align-items:flex-end;justify-content:center;}
-.modal-overlay.open{display:flex;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:200;display:none;align-items:flex-end;justify-content:center;pointer-events:none;}
+.modal-overlay.open{display:flex;pointer-events:auto;}
 .modal{background:var(--card);border:1px solid var(--border2);border-radius:var(--radius) var(--radius) 0 0;width:100%;max-width:480px;padding:20px 16px;padding-bottom:calc(20px + env(safe-area-inset-bottom));max-height:90dvh;overflow-y:auto;}
 .modal-title{font-size:14px;font-weight:700;color:var(--gold);margin-bottom:16px;}
 .modal label{font-size:10px;font-weight:600;letter-spacing:1px;color:var(--silver);text-transform:uppercase;display:block;margin-bottom:5px;margin-top:14px;}
@@ -239,7 +239,7 @@ input[type=number]{-moz-appearance:textfield;}
       </div>
     </div>
   </div>
-  <div class="page active" id="page-tracker">
+  <div class="page" id="page-tracker">
     <div class="section-label" style="margin-top:10px">Fortnight</div>
     <div class="fn-selector">
       <button class="fn-nav" onclick="changeFn(-1)">‹</button>
@@ -248,7 +248,7 @@ input[type=number]{-moz-appearance:textfield;}
     </div>
     <div id="tracker-body"></div>
   </div>
-  <div class="page" id="page-summary">
+  <div class="page active" id="page-summary">
     <div class="section-label" style="margin-top:10px">At a Glance</div>
     <div id="summary-body"></div>
   </div>
@@ -281,8 +281,8 @@ input[type=number]{-moz-appearance:textfield;}
     <div id="dashboard-body"></div>
   </div>
   <nav>
-    <button id="nav-tracker" class="active" onclick="showPage('tracker')"><span class="icon">⊞</span>TRACKER</button>
-    <button id="nav-summary" onclick="showPage('summary')"><span class="icon">◈</span>SUMMARY</button>
+    <button id="nav-summary" class="active" onclick="showPage('summary')"><span class="icon">◈</span>SUMMARY</button>
+    <button id="nav-tracker" onclick="showPage('tracker')"><span class="icon">⊞</span>TRACKER</button>
     <button id="nav-recurring" onclick="showPage('recurring')"><span class="icon">↻</span>RECURRING</button>
     <button id="nav-other" onclick="showPage('other')"><span class="icon">⊕</span>OTHER</button>
     <button id="nav-dashboard" onclick="showPage('dashboard')"><span class="icon">◉</span>CHARTS</button>
@@ -489,7 +489,7 @@ function setNW(d){localStorage.setItem('nw',JSON.stringify(d));}
 function defaultGoals(){return[{id:uid(),name:'Emergency Fund',target:10000,current:0},{id:uid(),name:'Holiday / Travel',target:5000,current:0},{id:uid(),name:'Car Fund',target:5000,current:0}];}
 function defaultRecurring(){return{subs:[{id:uid(),name:'Kayo Sports',freq:'Monthly',cost:40,due:'2026-07-01',keep:'YES',notes:'NRL / AFL'},{id:uid(),name:'Spotify',freq:'Monthly',cost:27.99,due:'2026-07-01',keep:'YES',notes:'Clarify family split'},{id:uid(),name:'Microsoft Game Pass',freq:'Monthly',cost:16.95,due:'2026-07-01',keep:'YES',notes:''},{id:uid(),name:'Microsoft 365',freq:'Monthly',cost:16,due:'2026-07-01',keep:'YES',notes:'Keep'},{id:uid(),name:'Minecraft Realms',freq:'Monthly',cost:11.19,due:'2026-07-01',keep:'YES',notes:''},{id:uid(),name:'Amazon Prime',freq:'Monthly',cost:9.99,due:'2026-07-01',keep:'REVIEW',notes:'Consider cancelling'},{id:uid(),name:'Gym Membership',freq:'Weekly',cost:16.24,due:'2026-07-06',keep:'YES',notes:'~$64.96/month'},{id:uid(),name:'Coaching',freq:'Weekly',cost:101.36,due:'2026-07-01',keep:'YES',notes:'Review if gym changes'},{id:uid(),name:'TradingView Premium',freq:'Annual',cost:null,due:'2027-03-01',keep:'YES',notes:'Maybe tax write-off'}],cons:[{id:uid(),name:'Haircut',cost:65,days:21,last:null,notes:''},{id:uid(),name:'Face Wash',cost:40,days:90,last:null,notes:''},{id:uid(),name:'Glutamine',cost:67.5,days:90,last:null,notes:''},{id:uid(),name:'Fish Oil',cost:69,days:90,last:null,notes:''},{id:uid(),name:'Leucine',cost:25,days:45,last:null,notes:''},{id:uid(),name:'Electrolytes',cost:45,days:36,last:null,notes:''},{id:uid(),name:'K2 + D3',cost:43,days:90,last:null,notes:''},{id:uid(),name:'Turmeric',cost:15,days:62,last:null,notes:''},{id:uid(),name:'Probiotics',cost:60,days:30,last:null,notes:''},{id:uid(),name:'Chop',cost:145,days:14,last:null,notes:'Fortnightly — set a spend goal'}]};}
 let currentFn=currentFnIndex(),currentRecurTab='subs',editRecurId=null,editOtherId=null,charts={};
-function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.getElementById('nav-'+name).classList.add('active');document.getElementById('fab').style.display=name==='tracker'?'flex':'none';if(name==='summary')renderSummary();if(name==='dashboard')renderDashboard();if(name==='recurring')renderRecurring();if(name==='other')renderOther();}
+function showPage(name){document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));document.getElementById('page-'+name).classList.add('active');document.getElementById('nav-'+name).classList.add('active');document.getElementById('fab').style.display=name==='tracker'?'flex':'none';if(name==='tracker')renderTracker();if(name==='summary')renderSummary();if(name==='dashboard')renderDashboard();if(name==='recurring')renderRecurring();if(name==='other')renderOther();}
 function buildFnSelect(){const sel=document.getElementById('fn-select');sel.innerHTML='';for(let i=0;i<NUM_FN;i++){const opt=document.createElement('option');opt.value=i;opt.textContent='FN '+(i+1)+'  ·  '+fmtShort(fnStartDate(i))+' – '+fmtShort(fnEndDate(i));if(i===currentFn)opt.selected=true;sel.appendChild(opt);}}
 function onFnSelect(){currentFn=parseInt(document.getElementById('fn-select').value);renderTracker();}
 function changeFn(d){const n=currentFn+d;if(n<0||n>=NUM_FN)return;currentFn=n;document.getElementById('fn-select').value=currentFn;renderTracker();}
@@ -565,7 +565,8 @@ function saveGoals(){const goals=getGoals();goals.forEach((g,i)=>{g.target=f(doc
 function switchRecurTab(tab){currentRecurTab=tab;document.getElementById('tab-subs').classList.toggle('active',tab==='subs');document.getElementById('tab-cons').classList.toggle('active',tab==='cons');renderRecurring();}
 function monthlyEq(item){if(!item.cost)return 0;const c=f(item.cost);if(item.freq==='Weekly')return c*52/12;if(item.freq==='Fortnightly')return c*26/12;if(item.freq==='Annual')return c/12;return c;}
 function renderRecurring(){
-  const rec=getRecurring();let html='';
+  const rec=getRecurring();
+  let html='';
   if(currentRecurTab==='subs'){
     const items=[...rec.subs].sort((a,b)=>{
       const da=a.due?daysFromToday(new Date(a.due)):9999;
@@ -574,42 +575,44 @@ function renderRecurring(){
     });
     const mt=items.reduce((s,i)=>s+monthlyEq(i),0);
     html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span><span class="total-bar-val">'+fmtAUD(mt)+'</span></div>';
-    for(const it of items){
+    items.forEach(function(it){
       const days=it.due?daysFromToday(new Date(it.due)):null;
       const uc=days===null?'none':days<=0?'due':days<=7?'soon':'ok';
       const dl=days===null?'—':days<=0?'DUE':days+'d';
       const mc=monthlyEq(it);
-      // Monthly cost prominently styled
-      const costHtml=it.cost?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'';
       html+='<div class="recurring-item">'
         +'<div class="urgency-bar '+uc+'"></div>'
         +'<div class="rec-body">'
-          +'<div class="rec-name"><span class="days-badge '+uc+'">'+dl+'</span>'+it.name+'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span></div>'
+          +'<div class="rec-name"><span class="days-badge '+uc+'">'+dl+'</span>'+it.name
+            +'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span></div>'
           +'<div class="rec-meta">'
             +'<span>'+it.freq+(it.cost?' · '+fmtAUD(it.cost):'')+'</span>'
-            +costHtml
+            +(mc?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'')
             +(it.due?'<span>Next: '+fmtShort(new Date(it.due))+'</span>':'')
           +'</div>'
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
         +'<div class="rec-actions">'
-          +'<button class="btn-sm ghost" data-action="edit-recur" data-id="'+it.id+'">Edit</button>'
-          +'<button class="btn-sm red" data-action="del-recur" data-id="'+it.id+'" data-tab="subs">✕</button>'
+          +'<button class="btn-sm ghost" data-id="'+it.id+'" data-fn="edit">Edit</button>'
+          +'<button class="btn-sm red"   data-id="'+it.id+'" data-fn="del" data-tab="subs">✕</button>'
         +'</div>'
       +'</div>';
-    }
+    });
   } else {
-    const items=rec.cons.map(c=>{
+    const items=rec.cons.map(function(c){
       const due=c.last?new Date(new Date(c.last).getTime()+c.days*86400000):null;
-      return{...c,dueDate:due,daysAway:due?daysFromToday(due):null};
-    }).sort((a,b)=>(a.daysAway!==null?a.daysAway:9999)-(b.daysAway!==null?b.daysAway:9999));
-    const dft=items.filter(i=>i.daysAway!==null&&i.daysAway<=14).reduce((s,i)=>s+f(i.cost),0);
-    if(dft>0)html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span><span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
-    for(const it of items){
+      return Object.assign({},c,{dueDate:due,daysAway:due?daysFromToday(due):null});
+    }).sort(function(a,b){
+      return (a.daysAway!==null?a.daysAway:9999)-(b.daysAway!==null?b.daysAway:9999);
+    });
+    const dft=items.filter(function(i){return i.daysAway!==null&&i.daysAway<=14;})
+                   .reduce(function(s,i){return s+f(i.cost);},0);
+    if(dft>0)html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span>'
+      +'<span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
+    items.forEach(function(it){
       const d=it.daysAway;
       const cls=d===null?'none':d<=0?'due':d<=7?'soon':'ok';
       const lbl=d===null?'No date set':d<=0?'OVERDUE':d+'d';
-      // Compact consumable tile — no rec-body wrapper, inline layout
       html+='<div class="cons-item">'
         +'<div class="urgency-bar '+cls+'"></div>'
         +'<div class="cons-body">'
@@ -619,19 +622,19 @@ function renderRecurring(){
             +'<span class="cons-cost">'+fmtAUD(it.cost)+'</span>'
           +'</div>'
           +'<div class="cons-row2">'
-            +(it.last?'<span>Last: '+fmtShort(new Date(it.last))+'</span>':'<span style="color:var(--dim)">Tap ✓ to set date</span>')
+            +(it.last?'<span>Last: '+fmtShort(new Date(it.last))+'</span>':'<span style="color:var(--dim)">Tap ✓ to log</span>')
             +(it.dueDate?'<span>Due: '+fmtShort(it.dueDate)+'</span>':'')
             +'<span style="color:var(--dim)">Lasts '+it.days+'d</span>'
           +'</div>'
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
         +'<div class="cons-actions">'
-          +'<button class="btn-icon green" data-action="bought" data-id="'+it.id+'" title="Mark bought">✓</button>'
-          +'<button class="btn-icon ghost" data-action="edit-recur" data-id="'+it.id+'" title="Edit">✎</button>'
-          +'<button class="btn-icon red" data-action="del-recur" data-id="'+it.id+'" data-tab="cons" title="Delete">✕</button>'
+          +'<button class="btn-icon green" data-id="'+it.id+'" data-fn="buy">✓</button>'
+          +'<button class="btn-icon ghost" data-id="'+it.id+'" data-fn="edit">✎</button>'
+          +'<button class="btn-icon red"   data-id="'+it.id+'" data-fn="del" data-tab="cons">✕</button>'
         +'</div>'
       +'</div>';
-    }
+    });
   }
   if(!html)html='<div class="empty"><div class="empty-icon">↻</div>No items yet. Tap + Add Item.</div>';
   document.getElementById('recurring-body').innerHTML=html;
@@ -732,18 +735,23 @@ let toastTimer=null;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400);}
 document.getElementById('fab').addEventListener('click',openQuickAdd);
 buildFnSelect();
-renderTracker();
 
-// Event delegation for recurring items (avoids broken inline onclick escaping)
-document.getElementById('recurring-body').addEventListener('click', function(e){
-  const btn = e.target.closest('[data-action]');
+// Single document-level handler for all recurring item buttons
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-fn]');
   if(!btn) return;
-  const action = btn.dataset.action;
-  const id     = btn.dataset.id;
-  if(action==='edit-recur') openRecurEdit(id);
-  if(action==='del-recur')  deleteRecur(id, btn.dataset.tab);
-  if(action==='bought')     markBought(id);
+  var fn  = btn.dataset.fn;
+  var id  = btn.dataset.id;
+  var tab = btn.dataset.tab;
+  if(!id) return;
+  if(fn==='edit') openRecurEdit(id);
+  if(fn==='del')  deleteRecur(id, tab);
+  if(fn==='buy')  markBought(id);
 });
+renderSummary();
+document.getElementById('fab').style.display='none';
+
+
 </script>
 </body>
 </html>
