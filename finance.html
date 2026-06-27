@@ -388,6 +388,44 @@ input[type=number]{-moz-appearance:textfield;}
     </div>
   </div>
 </div>
+<!-- Purchase Confirm Modal -->
+<div class="modal-overlay" id="modal-bought">
+  <div class="modal">
+    <div class="modal-title" id="bought-title">Log Purchase</div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      <div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--silver);letter-spacing:1px;text-transform:uppercase;width:72px;flex-shrink:0">Item</span>
+        <span id="bought-name" style="font-size:14px;font-weight:600;color:var(--white)"></span>
+      </div>
+      <div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--silver);letter-spacing:1px;text-transform:uppercase;width:72px;flex-shrink:0">Cost</span>
+        <input type="number" id="bought-cost" step="0.01" inputmode="decimal"
+          style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--gold-l);font-family:var(--mono);font-size:15px;font-weight:600;padding:6px 10px;width:120px;outline:none;-webkit-appearance:none"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="display:flex;align-items:center;padding:10px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:11px;color:var(--silver);letter-spacing:1px;text-transform:uppercase;width:72px;flex-shrink:0">Date</span>
+        <input type="date" id="bought-date"
+          style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--white);font-size:14px;padding:6px 10px;outline:none;appearance:none;-webkit-appearance:none"
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+      </div>
+      <div style="display:flex;align-items:center;padding:10px 0">
+        <span style="font-size:11px;color:var(--silver);letter-spacing:1px;text-transform:uppercase;width:72px;flex-shrink:0">Week</span>
+        <div style="display:flex;gap:8px">
+          <button id="bought-wk1" onclick="setBoughtWeek(1)"
+            style="padding:6px 16px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);color:var(--silver);font-size:13px;font-weight:600;cursor:pointer">Wk 1</button>
+          <button id="bought-wk2" onclick="setBoughtWeek(2)"
+            style="padding:6px 16px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);color:var(--silver);font-size:13px;font-weight:600;cursor:pointer">Wk 2</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bought')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmBought()">✓ Confirm</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script>
 'use strict';
@@ -460,7 +498,7 @@ function secTotal(s,d){if(s==='income')return fmtAUD(netIncome(d));if(s==='must'
 function renderTracker(){
   const fn=currentFn;
   let data=getTracker(fn);
-  const CARRY_FIELDS=['tax','hecs','rent','car_sav','savings','invested','payback','coaching','recur_bills'];const needsFill=CARRY_FIELDS.some(k=>!data[k]);if(needsFill){for(let i=fn-1;i>=0;i--){const p=getTracker(i);if(CARRY_FIELDS.some(k=>p[k])){const patch={};CARRY_FIELDS.forEach(k=>{if(!data[k]&&p[k])patch[k]=p[k];});data={...data,...patch};break;}}}
+  const CARRY_FIELDS=['tax','hecs','rent','car_sav','savings','invested','coaching'];const needsFill=CARRY_FIELDS.some(k=>!data[k]);if(needsFill){for(let i=fn-1;i>=0;i--){const p=getTracker(i);if(CARRY_FIELDS.some(k=>p[k])){const patch={};CARRY_FIELDS.forEach(k=>{if(!data[k]&&p[k])patch[k]=p[k];});data={...data,...patch};break;}}}
   const rollover=rolloverUpTo(fn),remain=remaining(data),pool=remain+rollover;
   const w1s=fnStartDate(fn),w2s=new Date(w1s);w2s.setDate(w2s.getDate()+7);
   const w1l='Wk 1 · '+fmtShort(w1s),w2l='Wk 2 · '+fmtShort(w2s);
@@ -599,7 +637,57 @@ function renderRecurring(){
   document.getElementById('recurring-body').innerHTML=html;
 }
 
-function markBought(id){const rec=getRecurring(),item=rec.cons.find(c=>c.id===id);if(!item)return;item.last=todayISO();setRecurring(rec);renderRecurring();toast('✓ '+item.name+' purchased today');}
+function markBought(id){
+  const rec=getRecurring(),item=rec.cons.find(c=>c.id===id);
+  if(!item)return;
+  // Store the item id for confirmBought
+  document.getElementById('modal-bought').dataset.itemId=id;
+  // Pre-fill modal fields
+  document.getElementById('bought-title').textContent='Log Purchase — '+item.name;
+  document.getElementById('bought-name').textContent=item.name;
+  document.getElementById('bought-cost').value=item.cost||'';
+  document.getElementById('bought-date').value=todayISO();
+  // Auto-detect week
+  const fn=currentFnIndex(),wk=currentWeekOfFn(fn);
+  setBoughtWeek(wk);
+  openModal('modal-bought');
+}
+
+function setBoughtWeek(wk){
+  const w1=document.getElementById('bought-wk1');
+  const w2=document.getElementById('bought-wk2');
+  const activeStyle='background:var(--gold-d);color:var(--gold-l);border-color:var(--gold-d)';
+  const inactiveStyle='background:var(--surface);color:var(--silver);border:1px solid var(--border)';
+  w1.style.cssText=wk===1?activeStyle:inactiveStyle;
+  w2.style.cssText=wk===2?activeStyle:inactiveStyle;
+  document.getElementById('modal-bought').dataset.week=wk;
+}
+
+function confirmBought(){
+  const id   = document.getElementById('modal-bought').dataset.itemId;
+  const wk   = parseInt(document.getElementById('modal-bought').dataset.week)||1;
+  const cost = parseFloat(document.getElementById('bought-cost').value)||0;
+  const date = document.getElementById('bought-date').value||todayISO();
+  const rec  = getRecurring();
+  const item = rec.cons.find(c=>c.id===id);
+  if(!item)return;
+  // Update last purchased date and (optionally) cost if user changed it
+  item.last=date;
+  if(cost>0)item.cost=cost;
+  setRecurring(rec);
+  // Log to tracker necessities
+  const fn=currentFnIndex();
+  const tdata=getTracker(fn);
+  const necKey=wk===1?'nec_w1':'nec_w2';
+  const notesKey=wk===1?'notes_w1':'notes_w2';
+  tdata[necKey]=(f(tdata[necKey])+cost).toFixed(2);
+  tdata[notesKey]=tdata[notesKey]?tdata[notesKey]+'. '+item.name:item.name;
+  setTracker(fn,tdata);
+  closeModal('modal-bought');
+  if(document.getElementById('page-tracker').classList.contains('active'))renderTracker();
+  renderRecurring();
+  toast('✓ '+item.name+' — $'+cost.toFixed(2)+' added to Wk '+wk+' Necessities');
+}
 function openRecurModal(){editRecurId=null;document.getElementById('recur-modal-title').textContent='Add Recurring Item';['rec-name','rec-cost','rec-due','rec-notes','rec-cons-cost','rec-cons-days','rec-cons-last'].forEach(id=>document.getElementById(id).value='');document.getElementById('rec-keep').value='YES';document.getElementById('rec-type').value='sub';document.getElementById('rec-freq').value='Monthly';toggleRecurType();openModal('modal-recur');}
 function openRecurEdit(id){const rec=getRecurring(),sub=rec.subs.find(s=>s.id===id),con=rec.cons.find(c=>c.id===id),item=sub||con;if(!item)return;editRecurId=id;document.getElementById('recur-modal-title').textContent='Edit Item';document.getElementById('rec-name').value=item.name;document.getElementById('rec-notes').value=item.notes||'';;if(sub){document.getElementById('rec-type').value='sub';document.getElementById('rec-freq').value=item.freq||'Monthly';document.getElementById('rec-cost').value=item.cost||'';;document.getElementById('rec-due').value=item.due||'';;document.getElementById('rec-keep').value=item.keep||'YES';}else{document.getElementById('rec-type').value='cons';document.getElementById('rec-cons-cost').value=item.cost||'';;document.getElementById('rec-cons-days').value=item.days||'';;document.getElementById('rec-cons-last').value=item.last||'';}toggleRecurType();openModal('modal-recur');}
 function toggleRecurType(){const s=document.getElementById('rec-type').value==='sub';document.getElementById('rec-sub-fields').style.display=s?'':' none';document.getElementById('rec-cons-fields').style.display=s?'none':'';;}
