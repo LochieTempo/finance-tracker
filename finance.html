@@ -143,6 +143,12 @@ nav button.active .icon{filter:drop-shadow(0 0 4px var(--gold));}
 .cons-name{flex:1;font-size:12px;font-weight:600;color:var(--white);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .cons-cost{font-family:var(--mono);font-size:12px;color:var(--gold-l);font-weight:600;flex-shrink:0;}
 .cons-row2{display:flex;gap:10px;flex-wrap:wrap;font-size:10px;color:var(--silver);}
+.cons-actions{display:flex;flex-direction:row;gap:5px;align-items:center;flex-shrink:0;}
+.btn-icon{width:28px;height:28px;border-radius:6px;border:none;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;flex-shrink:0;}
+.btn-icon:active{opacity:0.7;}
+.btn-icon.green{background:var(--green-d);color:var(--green);}
+.btn-icon.ghost{background:var(--surface);color:var(--silver);border:1px solid var(--border);}
+.btn-icon.red{background:var(--red-d);color:var(--red);}
 .urgency-bar{width:3px;border-radius:2px;align-self:stretch;flex-shrink:0;min-height:44px;}
 .urgency-bar.due{background:var(--red);}
 .urgency-bar.soon{background:var(--yellow);}
@@ -215,27 +221,16 @@ input[type=number]{-moz-appearance:textfield;}
     <div class="app-brand">
       <div class="app-icon">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="28" height="28">
-          <defs>
-            <linearGradient id="hbg" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#1c1500"/>
-              <stop offset="100%" stop-color="#0a0a0a"/>
-            </linearGradient>
-            <linearGradient id="hg1" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#e8c87a"/>
-              <stop offset="55%" stop-color="#c9a84c"/>
-              <stop offset="100%" stop-color="#8a6920"/>
-            </linearGradient>
-            <linearGradient id="hg2" x1="0%" y1="100%" x2="100%" y2="0%">
-              <stop offset="0%" stop-color="#8a6920"/>
-              <stop offset="100%" stop-color="#e8c87a"/>
-            </linearGradient>
-          </defs>
-          <rect width="512" height="512" rx="112" fill="url(#hbg)"/>
-          <rect width="512" height="512" rx="112" fill="none" stroke="#c9a84c" stroke-width="6" opacity="0.35"/>
-          <line x1="118" y1="390" x2="256" y2="108" stroke="url(#hg1)" stroke-width="56" stroke-linecap="round"/>
-          <line x1="394" y1="390" x2="256" y2="108" stroke="url(#hg1)" stroke-width="56" stroke-linecap="round"/>
-          <line x1="160" y1="300" x2="365" y2="244" stroke="url(#hg2)" stroke-width="44" stroke-linecap="round"/>
-          <circle cx="365" cy="244" r="30" fill="#e8c87a"/>
+          <rect width="512" height="512" rx="112" fill="#0d0900"/>
+          <rect width="512" height="512" rx="112" fill="none" stroke="#3a2e0e" stroke-width="8"/>
+          <polyline points="80,400 180,400 180,300 280,300 280,190 380,190 380,88 440,88" fill="none" stroke="#7a5f1e" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+          <polyline points="80,400 180,400 180,300 280,300 280,190 380,190 380,88 440,88" fill="none" stroke="#c9a84c" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="180" cy="400" r="22" fill="#c9a84c"/>
+          <circle cx="280" cy="300" r="22" fill="#c9a84c"/>
+          <circle cx="380" cy="190" r="22" fill="#c9a84c"/>
+          <circle cx="440" cy="88" r="28" fill="#e8c87a"/>
+          <circle cx="440" cy="88" r="12" fill="#0d0900"/>
+          <line x1="60" y1="432" x2="452" y2="432" stroke="#252010" stroke-width="10" stroke-linecap="round"/>
         </svg>
       </div>
       <div>
@@ -645,10 +640,10 @@ function renderRecurring(){
           +'</div>'
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
-        +'<div class="rec-actions">'
-          +'<button class="btn-sm green" data-action="bought" data-id="'+it.id+'">✓</button>'
-          +'<button class="btn-sm ghost" data-action="edit-recur" data-id="'+it.id+'">Edit</button>'
-          +'<button class="btn-sm red" data-action="del-recur" data-id="'+it.id+'" data-tab="cons">✕</button>'
+        +'<div class="cons-actions">'
+          +'<button class="btn-icon green" data-action="bought" data-id="'+it.id+'" title="Mark bought">✓</button>'
+          +'<button class="btn-icon ghost" data-action="edit-recur" data-id="'+it.id+'" title="Edit">✎</button>'
+          +'<button class="btn-icon red" data-action="del-recur" data-id="'+it.id+'" data-tab="cons" title="Delete">✕</button>'
         +'</div>'
       +'</div>';
     }
