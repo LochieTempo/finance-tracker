@@ -445,13 +445,27 @@ function currentWeekOfFn(fn){const today=new Date();today.setHours(0,0,0,0);cons
 // ─── CELL FORMULA EVALUATOR ──────────────────────────────────────────────────
 // Accepts: +110+17.50  =110+17.50  120*2  350-18.50  (100+50)*2  etc.
 // Only digits, decimals, and arithmetic operators — no arbitrary JS.
-function calcExpr(raw) {
+function calcExpr(raw, current) {
   if (raw === null || raw === undefined) return null;
   var s = String(raw).trim();
   if (s === '') return '';
+  // Strip = prefix (Excel-style: =100+50)
   if (s[0] === '=') s = s.slice(1).trim();
+  // Plain number — return as-is
   if (/^\d+(\.\d+)?$/.test(s)) return s;
+  // Only allow safe arithmetic characters
   if (!/^[\d.+\-*/()\s]+$/.test(s)) return s;
+  // Additive/subtractive adjustment: "+6.30" or "-10" means adjust current value
+  var isAdjust = /^[+\-]\d/.test(s);
+  if (isAdjust && current !== undefined && current !== '' && current !== null) {
+    var base = parseFloat(current) || 0;
+    try {
+      var delta = Function('"use strict"; return (' + s + ')')();
+      if (typeof delta !== 'number' || !isFinite(delta)) return raw;
+      return (Math.round((base + delta) * 100) / 100).toFixed(2);
+    } catch(e) { return raw; }
+  }
+  // Full expression: 110+17.50, (100+50)*2, etc.
   if (s[0] === '+') s = s.slice(1);
   try {
     var result = Function('"use strict"; return (' + s + ')')();
@@ -536,9 +550,9 @@ function renderTracker(){
     } else if(cat.type==='split'){
       const w1id=cat.id,w2id=cat.id.replace('_w1','_w2'),ip=!!cat.pokemon;
       const ic=ip?'w-input pokemon-input':'w-input';
-      html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="text" inputmode="decimal" value="'+( data[w1id]||'')+'" onchange="saveField('+fn+',\''+w1id+'\',this.value)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="text" inputmode="decimal" value="'+( data[w2id]||'')+'" onchange="saveField('+fn+',\''+w2id+'\',this.value)"></div></div></div>';
+      html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+( data[w1id]||'')+'" onchange="saveField('+fn+',\''+w1id+'\',this.value)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+( data[w2id]||'')+'" onchange="saveField('+fn+',\''+w2id+'\',this.value)"></div></div></div>';
     } else {
-      const _pslip=cat.id==='tax'||cat.id==='hecs';html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+(_pslip?' <span style="font-size:9px;color:var(--dim);font-weight:400">payslip</span>':'')+' </span><input class="w-input single" type="text" inputmode="decimal" value="'+( data[cat.id]||'')+'" onchange="saveField('+fn+',\''+cat.id+'\',this.value)"></div>';
+      const _pslip=cat.id==='tax'||cat.id==='hecs';html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+(_pslip?' <span style="font-size:9px;color:var(--dim);font-weight:400">payslip</span>':'')+' </span><input class="w-input single" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+( data[cat.id]||'')+'" onchange="saveField('+fn+',\''+cat.id+'\',this.value)"></div>';
     }
   }
   html+='</div>';
@@ -551,7 +565,7 @@ function renderTracker(){
        '<div class="notes-block"><div class="notes-label">Week 2 — Spending items</div><div class="notes-area"><textarea placeholder="e.g. Chop. Coffee + K. Driving range…" onchange="saveField('+fn+',\'notes_w2\',this.value)">'+( data.notes_w2||'')+'</textarea></div></div>';
   document.getElementById('tracker-body').innerHTML=html;
 }
-function saveField(fn,id,val){var resolved=calcExpr(val);var data=getTracker(fn);data[id]=resolved;setTracker(fn,data);updateCalcs(fn);if(resolved!==val&&document.activeElement&&document.activeElement.tagName==="INPUT")document.activeElement.value=resolved;}
+function saveField(fn,id,val){var data=getTracker(fn);var current=data[id];var resolved=calcExpr(val,current);data[id]=resolved;setTracker(fn,data);updateCalcs(fn);if(resolved!==val&&document.activeElement&&document.activeElement.tagName==="INPUT"){document.activeElement.value=resolved;}}
 function updateCalcs(fn){
   const data=getTracker(fn),rollover=rolloverUpTo(fn),remain=remaining(data),pool=remain+rollover;
   document.querySelectorAll('.tracker-section-hdr').forEach(h=>{const c=h.classList[1],sp=h.querySelector('span:last-child');if(!sp)return;if(c==='income')sp.textContent=fmtAUD(netIncome(data));if(c==='must')sp.textContent=fmtAUD(totalMust(data));if(c==='will')sp.textContent=fmtAUD(totalWill(data));if(c==='want')sp.textContent=fmtAUD(totalWant(data));});
