@@ -529,7 +529,7 @@ function kpCh(c){if(c==='.'){var lastOp=Math.max(KP.expr.lastIndexOf('+'),KP.exp
 function kpOp(op){if(!KP.expr)return;var last=KP.expr.slice(-1);KP.expr='+-−×÷'.includes(last)?KP.expr.slice(0,-1)+op:KP.expr+op;kpRefresh();}
 function kpDel(){KP.expr=KP.expr.slice(0,-1);kpRefresh();}
 function kpPar(){var o=(KP.expr.match(/\(/g)||[]).length,c2=(KP.expr.match(/\)/g)||[]).length;KP.expr+=o>c2?')':'(';kpRefresh();}
-function kpTap(el){var fn2=parseInt(el.dataset.kpFn!==undefined?el.dataset.kpFn:currentFn);var id=el.dataset.kp;var lbl=el.dataset.kpLbl||id;kpOpen(fn2,id,lbl,el.value);}
+function kpTap(el){var fn2=parseInt(el.dataset.kpFn!==undefined?el.dataset.kpFn:currentFn);var id=el.dataset.kp;var lbl=(el.dataset.kpLbl||id)+(el.dataset.kpWk?' Wk '+el.dataset.kpWk:'');kpOpen(fn2,id,lbl,el.value);}
 function kpDone(){var result=kpCalc(KP.expr);var val=result!==null?result.toFixed(2):(KP.expr||'');var data=getTracker(KP.fn);data[KP.id]=val;setTracker(KP.fn,data);updateCalcs(KP.fn);document.querySelectorAll('[data-kp="'+KP.id+'"]').forEach(function(el){el.value=val;});kpClose();if(result!==null&&KP.expr!==val)toast(fmtAUD(result));}
 
 const CATS=[
@@ -609,7 +609,7 @@ function renderTracker(){
     } else if(cat.type==='split'){
       const w1id=cat.id,w2id=cat.id.replace('_w1','_w2'),ip=!!cat.pokemon;
       const ic=ip?'w-input pokemon-input':'w-input';
-      html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="text" inputmode="none" readonly data-kp="'+w1id+'" data-kp-lbl="'+cat.label+' Wk 1'" data-kp-fn="'+fn+'" value="'+( data[w1id]||'')+'" onclick="kpTap(this)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="text" inputmode="none" readonly data-kp="'+w2id+'" data-kp-lbl="'+cat.label+' Wk 2'" data-kp-fn="'+fn+'" value="'+( data[w2id]||'')+'" onclick="kpTap(this)"></div></div></div>';
+      html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="text" inputmode="none" readonly data-kp="'+w1id+'" data-kp-lbl="'+cat.label+'" data-kp-wk="1" data-kp-fn="'+fn+'" value="'+( data[w1id]||'')+'" onclick="kpTap(this)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="text" inputmode="none" readonly data-kp="'+w2id+'" data-kp-lbl="'+cat.label+'" data-kp-wk="2" data-kp-fn="'+fn+'" value="'+( data[w2id]||'')+'" onclick="kpTap(this)"></div></div></div>';
     } else {
       const _pslip=cat.id==='tax'||cat.id==='hecs';html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+(_pslip?' <span style="font-size:9px;color:var(--dim);font-weight:400">payslip</span>':'')+' </span><input class="w-input single" type="text" inputmode="none" readonly data-kp="'+cat.id+'" data-kp-lbl="'+cat.label+'" data-kp-fn="'+fn+'" value="'+( data[cat.id]||'')+'" onclick="kpTap(this)"></div>';
     }
@@ -814,19 +814,6 @@ let toastTimer=null;
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');if(toastTimer)clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),2400);}
 document.getElementById('fab').addEventListener('click',openQuickAdd);
 buildFnSelect();
-
-// Single document-level handler for all recurring item buttons
-document.addEventListener('click', function(e){
-  var btn = e.target.closest('[data-fn]');
-  if(!btn) return;
-  var fn  = btn.dataset.fn;
-  var id  = btn.dataset.id;
-  var tab = btn.dataset.tab;
-  if(!id) return;
-  if(fn==='edit') openRecurEdit(id);
-  if(fn==='del')  deleteRecur(id, tab);
-  if(fn==='buy')  markBought(id);
-});
 renderSummary();
 document.getElementById('fab').style.display='none';
 
