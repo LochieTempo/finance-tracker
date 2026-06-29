@@ -766,52 +766,84 @@ function saveGoals(){const goals=getGoals();goals.forEach((g,i)=>{g.target=f(doc
 function switchRecurTab(tab){currentRecurTab=tab;document.getElementById('tab-subs').classList.toggle('active',tab==='subs');document.getElementById('tab-cons').classList.toggle('active',tab==='cons');renderRecurring();}
 function monthlyEq(item){if(!item.cost)return 0;const c=f(item.cost);if(item.freq==='Weekly')return c*52/12;if(item.freq==='Fortnightly')return c*26/12;if(item.freq==='Annual')return c/12;return c;}
 function renderRecurring(){
-  var rec=getRecurring(),html='';
+  var rec=getRecurring(), html='';
   if(currentRecurTab==='subs'){
     var items=[].concat(rec.subs).sort(function(a,b){
-      return (a.due?daysFromToday(new Date(a.due)):9999)-(b.due?daysFromToday(new Date(b.due)):9999);
+      return (a.due?daysFromToday(new Date(a.due)):9999)
+            -(b.due?daysFromToday(new Date(b.due)):9999);
     });
-    html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span><span class="total-bar-val">'+fmtAUD(items.reduce(function(s,i){return s+monthlyEq(i);},0))+'</span></div>';
+    html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span>'
+         +'<span class="total-bar-val">'+fmtAUD(items.reduce(function(s,i){return s+monthlyEq(i);},0))+'</span></div>';
     items.forEach(function(it){
       var days=it.due?daysFromToday(new Date(it.due)):null;
       var uc=days===null?'none':days<=0?'due':days<=7?'soon':'ok';
       var dl=days===null?'\u2014':days<=0?'DUE':days+'d';
       var mc=monthlyEq(it);
-      html+='<div class="recurring-item"><div class="urgency-bar '+uc+'"></div>'
-           +'<div class="rec-body"><div class="rec-name"><span class="days-badge '+uc+'">'+dl+'</span>'+it.name+'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span></div>'
-           +'<div class="rec-meta"><span>'+it.freq+(it.cost?' \u00b7 '+fmtAUD(it.cost):'')+'</span>'+(mc?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'')+(it.due?'<span>Next: '+fmtShort(new Date(it.due))+'</span>':'')+'</div>'
-           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')+'</div>'
+      html+='<div class="recurring-item">'
+           +'<div class="urgency-bar '+uc+'"></div>'
+           +'<div class="rec-body">'
+             +'<div class="rec-name"><span class="days-badge '+uc+'">'+dl+'</span>'
+               +it.name+'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span></div>'
+             +'<div class="rec-meta"><span>'+it.freq+(it.cost?' \u00b7 '+fmtAUD(it.cost):'')+'</span>'
+               +(mc?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'')
+               +(it.due?'<span>Next: '+fmtShort(new Date(it.due))+'</span>':'')
+             +'</div>'
+             +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
+           +'</div>'
            +'<div class="rec-actions">'
-           +'<button class="btn-sm ghost" onclick="rrEdit(\''+it.id+'\')">Edit</button>'
-           +'<button class="btn-sm red"   onclick="rrDel(\''+it.id+'\',\'subs\')">\u2715</button>'
-           +'</div></div>';
+             +'<button class="btn-sm ghost" data-id="'+it.id+'" onclick="rrEdit(this)">Edit</button>'
+             +'<button class="btn-sm red" data-id="'+it.id+'" data-tab="subs" onclick="rrDel(this)">\u2715</button>'
+           +'</div>'
+         +'</div>';
     });
   } else {
     var items2=rec.cons.map(function(c){
       var due=c.last?new Date(new Date(c.last).getTime()+c.days*86400000):null;
       return Object.assign({},c,{dueDate:due,daysAway:due?daysFromToday(due):null});
-    }).sort(function(a,b){return(a.daysAway!==null?a.daysAway:9999)-(b.daysAway!==null?b.daysAway:9999);});
-    var dft=items2.filter(function(i){return i.daysAway!==null&&i.daysAway<=14;}).reduce(function(s,i){return s+f(i.cost);},0);
-    if(dft>0)html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span><span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
+    }).sort(function(a,b){
+      return (a.daysAway!==null?a.daysAway:9999)-(b.daysAway!==null?b.daysAway:9999);
+    });
+    var dft=items2.filter(function(i){return i.daysAway!==null&&i.daysAway<=14;})
+                  .reduce(function(s,i){return s+f(i.cost);},0);
+    if(dft>0){
+      html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span>'
+           +'<span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
+    }
     items2.forEach(function(it){
-      var d=it.daysAway,cls=d===null?'none':d<=0?'due':d<=7?'soon':'ok',lbl=d===null?'No date':d<=0?'OVERDUE':d+'d';
-      html+='<div class="cons-item"><div class="urgency-bar '+cls+'"></div>'
-           +'<div class="cons-body"><div class="cons-row1"><span class="days-badge '+cls+'">'+lbl+'</span><span class="cons-name">'+it.name+'</span><span class="cons-cost">'+fmtAUD(it.cost)+'</span></div>'
-           +'<div class="cons-row2">'+(it.last?'<span>Last: '+fmtShort(new Date(it.last))+'</span>':'<span style="color:var(--dim)">Tap \u2713 to log</span>')+(it.dueDate?'<span>Due: '+fmtShort(it.dueDate)+'</span>':'')+'<span style="color:var(--dim)">Lasts '+it.days+'d</span></div>'
-           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')+'</div>'
+      var d=it.daysAway;
+      var cls=d===null?'none':d<=0?'due':d<=7?'soon':'ok';
+      var lbl=d===null?'No date':d<=0?'OVERDUE':d+'d';
+      html+='<div class="cons-item">'
+           +'<div class="urgency-bar '+cls+'"></div>'
+           +'<div class="cons-body">'
+             +'<div class="cons-row1">'
+               +'<span class="days-badge '+cls+'">'+lbl+'</span>'
+               +'<span class="cons-name">'+it.name+'</span>'
+               +'<span class="cons-cost">'+fmtAUD(it.cost)+'</span>'
+             +'</div>'
+             +'<div class="cons-row2">'
+               +(it.last?'<span>Last: '+fmtShort(new Date(it.last))+'</span>'
+                        :'<span style="color:var(--dim)">Tap \u2713 to log purchase</span>')
+               +(it.dueDate?'<span>Due: '+fmtShort(it.dueDate)+'</span>':'')
+               +'<span style="color:var(--dim)">Lasts '+it.days+'d</span>'
+             +'</div>'
+             +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
+           +'</div>'
            +'<div class="cons-actions">'
-           +'<button class="btn-icon green" onclick="rrBuy(\''+it.id+'\')">\u2713</button>'
-           +'<button class="btn-icon ghost" onclick="rrEdit(\''+it.id+'\')">\u270e</button>'
-           +'<button class="btn-icon red"   onclick="rrDel(\''+it.id+'\',\'cons\')">\u2715</button>'
-           +'</div></div>';
+             +'<button class="btn-icon green" data-id="'+it.id+'" onclick="rrBuy(this)">\u2713</button>'
+             +'<button class="btn-icon ghost" data-id="'+it.id+'" onclick="rrEdit(this)">\u270e</button>'
+             +'<button class="btn-icon red" data-id="'+it.id+'" data-tab="cons" onclick="rrDel(this)">\u2715</button>'
+           +'</div>'
+         +'</div>';
     });
   }
   if(!html)html='<div class="empty"><div class="empty-icon">\u21bb</div>No items yet. Tap + Add Item.</div>';
   document.getElementById('recurring-body').innerHTML=html;
 }
-function rrEdit(id){openRecurEdit(id);}
-function rrDel(id,tab){deleteRecur(id,tab);}
-function rrBuy(id){markBought(id);}
+
+function rrEdit(btn){openRecurEdit(btn.dataset.id);}
+function rrDel(btn){deleteRecur(btn.dataset.id, btn.dataset.tab);}
+function rrBuy(btn){markBought(btn.dataset.id);}
 
 function markBought(id){
   const rec=getRecurring(),item=rec.cons.find(c=>c.id===id);
