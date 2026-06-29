@@ -211,6 +211,23 @@ nav button.active .icon{filter:drop-shadow(0 0 4px var(--gold));}
 ::-webkit-scrollbar{width:3px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+.kp-overlay{position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0);pointer-events:none;transition:background .15s;}
+.kp-overlay.open{background:rgba(0,0,0,.45);pointer-events:auto;}
+#keypad{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(110%);width:100%;max-width:480px;background:#111;border-top:1px solid var(--border2);border-radius:var(--radius) var(--radius) 0 0;padding:0 10px calc(10px + env(safe-area-inset-bottom));z-index:301;transition:transform .22s cubic-bezier(.32,.72,0,1);}
+#keypad.open{transform:translateX(-50%) translateY(0);}
+#kp-hdr{display:flex;justify-content:space-between;align-items:center;padding:10px 4px 8px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+#kp-lbl{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--silver);}
+#kp-expr{font-family:var(--mono);font-size:17px;color:var(--gold-l);flex:1;text-align:center;padding:0 8px;}
+#kp-res{font-size:11px;font-family:var(--mono);color:var(--green);font-weight:700;white-space:nowrap;}
+.kp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:4px;}
+.kk{background:var(--card);border:1px solid var(--border);border-radius:8px;height:50px;font-size:19px;font-weight:500;color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;user-select:none;}
+.kk:active{background:var(--border2);transform:scale(.93);}
+.kk.op{color:var(--gold-l);background:#1a1600;border-color:var(--gold-d);font-size:23px;}
+.kk.op:active{background:var(--gold-d);}
+.kk.del{color:var(--red);background:var(--red-d);}
+.kk.done{grid-column:span 2;background:var(--gold);color:#000;font-weight:700;font-size:15px;border:none;}
+.kk.done:active{background:var(--gold-l);}
+.kk.par{color:var(--silver);font-size:14px;}
 input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;}
 input[type=number]{-moz-appearance:textfield;}
 </style>
@@ -426,6 +443,35 @@ input[type=number]{-moz-appearance:textfield;}
   </div>
 </div>
 
+<div class="kp-overlay" id="kp-overlay" onclick="if(event.target===this)kpClose()">
+  <div id="keypad">
+    <div id="kp-hdr">
+      <span id="kp-lbl">Amount</span>
+      <span id="kp-expr">0</span>
+      <span id="kp-res"></span>
+    </div>
+    <div class="kp-grid">
+      <button class="kk op" onclick="kpOp('+')">+</button>
+      <button class="kk op" onclick="kpOp('−')">−</button>
+      <button class="kk op" onclick="kpOp('×')">×</button>
+      <button class="kk op" onclick="kpOp('÷')">÷</button>
+      <button class="kk" onclick="kpCh('7')">7</button>
+      <button class="kk" onclick="kpCh('8')">8</button>
+      <button class="kk" onclick="kpCh('9')">9</button>
+      <button class="kk del" onclick="kpDel()">⌫</button>
+      <button class="kk" onclick="kpCh('4')">4</button>
+      <button class="kk" onclick="kpCh('5')">5</button>
+      <button class="kk" onclick="kpCh('6')">6</button>
+      <button class="kk par" onclick="kpPar()">(  )</button>
+      <button class="kk" onclick="kpCh('1')">1</button>
+      <button class="kk" onclick="kpCh('2')">2</button>
+      <button class="kk" onclick="kpCh('3')">3</button>
+      <button class="kk" onclick="kpCh('.')">.</button>
+      <button class="kk" onclick="kpCh('0')">0</button>
+      <button class="kk done" onclick="kpDone()">✓ Done</button>
+    </div>
+  </div>
+</div>
 <div id="toast"></div>
 <script>
 'use strict';
@@ -473,6 +519,19 @@ function calcExpr(raw, current) {
     return (Math.round(result * 100) / 100).toFixed(2);
   } catch(e) { return raw; }
 }
+
+var KP={expr:'',fn:0,id:'',label:''};
+function kpOpen(fn,id,label,cur){KP.fn=fn;KP.id=id;KP.label=label;KP.expr=cur?String(cur):'';document.getElementById('kp-lbl').textContent=label;kpRefresh();document.getElementById('kp-overlay').classList.add('open');document.getElementById('keypad').classList.add('open');}
+function kpClose(){document.getElementById('kp-overlay').classList.remove('open');document.getElementById('keypad').classList.remove('open');}
+function kpRefresh(){document.getElementById('kp-expr').textContent=KP.expr||'0';var r=kpCalc(KP.expr);document.getElementById('kp-res').textContent=r!==null?'= '+fmtAUD(r):'';}
+function kpCalc(e){if(!e)return null;var s=e.replace(/−/g,'-').replace(/×/g,'*').replace(/÷/g,'/');s=s.replace(/[+\-*/]$/,'');if(!s)return null;try{var r=Function('"use strict";return('+s+')')();return(typeof r==='number'&&isFinite(r))?Math.round(r*100)/100:null;}catch(x){return null;}}
+function kpCh(c){if(c==='.'){var lastOp=Math.max(KP.expr.lastIndexOf('+'),KP.expr.lastIndexOf('−'),KP.expr.lastIndexOf('×'),KP.expr.lastIndexOf('÷'),KP.expr.lastIndexOf('('));if(KP.expr.slice(lastOp+1).includes('.'))return;}KP.expr+=c;kpRefresh();}
+function kpOp(op){if(!KP.expr)return;var last=KP.expr.slice(-1);KP.expr='+-−×÷'.includes(last)?KP.expr.slice(0,-1)+op:KP.expr+op;kpRefresh();}
+function kpDel(){KP.expr=KP.expr.slice(0,-1);kpRefresh();}
+function kpPar(){var o=(KP.expr.match(/\(/g)||[]).length,c2=(KP.expr.match(/\)/g)||[]).length;KP.expr+=o>c2?')':'(';kpRefresh();}
+function kpTap(el){var fn2=parseInt(el.dataset.kpFn!==undefined?el.dataset.kpFn:currentFn);var id=el.dataset.kp;var lbl=el.dataset.kpLbl||id;kpOpen(fn2,id,lbl,el.value);}
+function kpDone(){var result=kpCalc(KP.expr);var val=result!==null?result.toFixed(2):(KP.expr||'');var data=getTracker(KP.fn);data[KP.id]=val;setTracker(KP.fn,data);updateCalcs(KP.fn);document.querySelectorAll('[data-kp="'+KP.id+'"]').forEach(function(el){el.value=val;});kpClose();if(result!==null&&KP.expr!==val)toast(fmtAUD(result));}
+
 const CATS=[
   {id:'gross',label:'Gross Pay',section:'income',type:'input'},
   {id:'tax',label:'Tax Withheld',section:'income',type:'input'},
@@ -550,9 +609,9 @@ function renderTracker(){
     } else if(cat.type==='split'){
       const w1id=cat.id,w2id=cat.id.replace('_w1','_w2'),ip=!!cat.pokemon;
       const ic=ip?'w-input pokemon-input':'w-input';
-      html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+( data[w1id]||'')+'" onchange="saveField('+fn+',\''+w1id+'\',this.value)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+( data[w2id]||'')+'" onchange="saveField('+fn+',\''+w2id+'\',this.value)"></div></div></div>';
+      html+='<div class="tracker-row'+(ip?' pokemon-row':'')+'"><span class="tracker-row-label'+(ip?' pokemon-label':'')+'" style="font-size:11px">'+cat.label+'</span><div class="week-inputs"><div class="week-col"><div class="week-col-hdr">'+w1l+'</div><input class="'+ic+'" type="text" inputmode="none" readonly data-kp="'+w1id+'" data-kp-lbl="'+cat.label+' Wk 1'" data-kp-fn="'+fn+'" value="'+( data[w1id]||'')+'" onclick="kpTap(this)"></div><div class="week-col"><div class="week-col-hdr">'+w2l+'</div><input class="'+ic+'" type="text" inputmode="none" readonly data-kp="'+w2id+'" data-kp-lbl="'+cat.label+' Wk 2'" data-kp-fn="'+fn+'" value="'+( data[w2id]||'')+'" onclick="kpTap(this)"></div></div></div>';
     } else {
-      const _pslip=cat.id==='tax'||cat.id==='hecs';html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+(_pslip?' <span style="font-size:9px;color:var(--dim);font-weight:400">payslip</span>':'')+' </span><input class="w-input single" type="text" inputmode="decimal" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" value="'+( data[cat.id]||'')+'" onchange="saveField('+fn+',\''+cat.id+'\',this.value)"></div>';
+      const _pslip=cat.id==='tax'||cat.id==='hecs';html+='<div class="tracker-row"><span class="tracker-row-label">'+cat.label+(_pslip?' <span style="font-size:9px;color:var(--dim);font-weight:400">payslip</span>':'')+' </span><input class="w-input single" type="text" inputmode="none" readonly data-kp="'+cat.id+'" data-kp-lbl="'+cat.label+'" data-kp-fn="'+fn+'" value="'+( data[cat.id]||'')+'" onclick="kpTap(this)"></div>';
     }
   }
   html+='</div>';
@@ -597,100 +656,68 @@ function saveGoals(){const goals=getGoals();goals.forEach((g,i)=>{g.target=f(doc
 function switchRecurTab(tab){currentRecurTab=tab;document.getElementById('tab-subs').classList.toggle('active',tab==='subs');document.getElementById('tab-cons').classList.toggle('active',tab==='cons');renderRecurring();}
 function monthlyEq(item){if(!item.cost)return 0;const c=f(item.cost);if(item.freq==='Weekly')return c*52/12;if(item.freq==='Fortnightly')return c*26/12;if(item.freq==='Annual')return c/12;return c;}
 function renderRecurring(){
-  const rec=getRecurring();
-  // Store items globally so onclick handlers can find them by id
-  window._RR={};
-  rec.subs.forEach(function(it){window._RR[it.id]=it;});
-  rec.cons.forEach(function(it){window._RR[it.id]=it;});
-
-  let html='';
+  var rec=getRecurring();
+  var html='';
   if(currentRecurTab==='subs'){
-    const items=[...rec.subs].sort(function(a,b){
-      const da=a.due?daysFromToday(new Date(a.due)):9999;
-      const db=b.due?daysFromToday(new Date(b.due)):9999;
+    var items=[].concat(rec.subs).sort(function(a,b){
+      var da=a.due?daysFromToday(new Date(a.due)):9999;
+      var db=b.due?daysFromToday(new Date(b.due)):9999;
       return da-db;
     });
-    const mt=items.reduce(function(s,i){return s+monthlyEq(i);},0);
-    html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span>'
-         +'<span class="total-bar-val">'+fmtAUD(mt)+'</span></div>';
+    var mt=items.reduce(function(s,i){return s+monthlyEq(i);},0);
+    html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span><span class="total-bar-val">'+fmtAUD(mt)+'</span></div>';
     items.forEach(function(it){
-      const days=it.due?daysFromToday(new Date(it.due)):null;
-      const uc=days===null?'none':days<=0?'due':days<=7?'soon':'ok';
-      const dl=days===null?'—':days<=0?'DUE':days+'d';
-      const mc=monthlyEq(it);
+      var days=it.due?daysFromToday(new Date(it.due)):null;
+      var uc=days===null?'none':days<=0?'due':days<=7?'soon':'ok';
+      var dl=days===null?'\u2014':days<=0?'DUE':days+'d';
+      var mc=monthlyEq(it);
       html+='<div class="recurring-item">'
         +'<div class="urgency-bar '+uc+'"></div>'
         +'<div class="rec-body">'
-          +'<div class="rec-name">'
-            +'<span class="days-badge '+uc+'">'+dl+'</span>'
-            +it.name
-            +'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span>'
-          +'</div>'
-          +'<div class="rec-meta">'
-            +'<span>'+it.freq+(it.cost?' · '+fmtAUD(it.cost):'')+'</span>'
-            +(mc?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'')
-            +(it.due?'<span>Next: '+fmtShort(new Date(it.due))+'</span>':'')
-          +'</div>'
+          +'<div class="rec-name"><span class="days-badge '+uc+'">'+dl+'</span>'+it.name+'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span></div>'
+          +'<div class="rec-meta"><span>'+it.freq+(it.cost?' \u00b7 '+fmtAUD(it.cost):'')+'</span>'+(mc?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'')+(it.due?'<span>Next: '+fmtShort(new Date(it.due))+'</span>':'')+'</div>'
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
         +'<div class="rec-actions">'
           +'<button class="btn-sm ghost" onclick="rrEdit(\''+it.id+'\')">Edit</button>'
-          +'<button class="btn-sm red"   onclick="rrDel(\''+it.id+'\',\'subs\')">✕</button>'
+          +'<button class="btn-sm red" onclick="rrDel(\''+it.id+'\',\'subs\')">\u2715</button>'
         +'</div>'
       +'</div>';
     });
   } else {
-    const items=rec.cons.map(function(c){
-      const due=c.last?new Date(new Date(c.last).getTime()+c.days*86400000):null;
+    var items2=rec.cons.map(function(c){
+      var due=c.last?new Date(new Date(c.last).getTime()+c.days*86400000):null;
       return Object.assign({},c,{dueDate:due,daysAway:due?daysFromToday(due):null});
     }).sort(function(a,b){
       return (a.daysAway!==null?a.daysAway:9999)-(b.daysAway!==null?b.daysAway:9999);
     });
-    const dft=items.filter(function(i){return i.daysAway!==null&&i.daysAway<=14;})
-                   .reduce(function(s,i){return s+f(i.cost);},0);
-    if(dft>0){
-      html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span>'
-           +'<span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
-    }
-    items.forEach(function(it){
-      const d=it.daysAway;
-      const cls=d===null?'none':d<=0?'due':d<=7?'soon':'ok';
-      const lbl=d===null?'No date set':d<=0?'OVERDUE':d+'d';
+    var dft=items2.filter(function(i){return i.daysAway!==null&&i.daysAway<=14;}).reduce(function(s,i){return s+f(i.cost);},0);
+    if(dft>0)html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span><span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
+    items2.forEach(function(it){
+      var d=it.daysAway;
+      var cls=d===null?'none':d<=0?'due':d<=7?'soon':'ok';
+      var lbl=d===null?'No date set':d<=0?'OVERDUE':d+'d';
       html+='<div class="cons-item">'
         +'<div class="urgency-bar '+cls+'"></div>'
         +'<div class="cons-body">'
-          +'<div class="cons-row1">'
-            +'<span class="days-badge '+cls+'">'+lbl+'</span>'
-            +'<span class="cons-name">'+it.name+'</span>'
-            +'<span class="cons-cost">'+fmtAUD(it.cost)+'</span>'
-          +'</div>'
-          +'<div class="cons-row2">'
-            +(it.last
-              ?'<span>Last: '+fmtShort(new Date(it.last))+'</span>'
-              :'<span style="color:var(--dim)">Tap ✓ to log</span>')
-            +(it.dueDate?'<span>Due: '+fmtShort(it.dueDate)+'</span>':'')
-            +'<span style="color:var(--dim)">Lasts '+it.days+'d</span>'
-          +'</div>'
+          +'<div class="cons-row1"><span class="days-badge '+cls+'">'+lbl+'</span><span class="cons-name">'+it.name+'</span><span class="cons-cost">'+fmtAUD(it.cost)+'</span></div>'
+          +'<div class="cons-row2">'+(it.last?'<span>Last: '+fmtShort(new Date(it.last))+'</span>':'<span style="color:var(--dim)">Tap \u2713 to log</span>')+(it.dueDate?'<span>Due: '+fmtShort(it.dueDate)+'</span>':'')+'<span style="color:var(--dim)">Lasts '+it.days+'d</span></div>'
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
         +'<div class="cons-actions">'
-          +'<button class="btn-icon green" onclick="rrBuy(\''+it.id+'\')">✓</button>'
-          +'<button class="btn-icon ghost" onclick="rrEdit(\''+it.id+'\')">✎</button>'
-          +'<button class="btn-icon red"   onclick="rrDel(\''+it.id+'\',\'cons\')">✕</button>'
+          +'<button class="btn-icon green" onclick="rrBuy(\''+it.id+'\')">\u2713</button>'
+          +'<button class="btn-icon ghost" onclick="rrEdit(\''+it.id+'\')">\u270e</button>'
+          +'<button class="btn-icon red" onclick="rrDel(\''+it.id+'\',\'cons\')">\u2715</button>'
         +'</div>'
       +'</div>';
     });
   }
-  if(!html){
-    html='<div class="empty"><div class="empty-icon">↻</div>No items yet. Tap + Add Item.</div>';
-  }
+  if(!html)html='<div class="empty"><div class="empty-icon">\u21bb</div>No items yet.</div>';
   document.getElementById('recurring-body').innerHTML=html;
 }
-
-// Simple named wrappers — these are global functions called directly from onclick
-function rrEdit(id){ openRecurEdit(id); }
-function rrDel(id,tab){ deleteRecur(id,tab); }
-function rrBuy(id){ markBought(id); }
+function rrEdit(id){openRecurEdit(id);}
+function rrDel(id,tab){deleteRecur(id,tab);}
+function rrBuy(id){markBought(id);}
 
 function markBought(id){
   const rec=getRecurring(),item=rec.cons.find(c=>c.id===id);
@@ -788,7 +815,18 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 document.getElementById('fab').addEventListener('click',openQuickAdd);
 buildFnSelect();
 
-
+// Single document-level handler for all recurring item buttons
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-fn]');
+  if(!btn) return;
+  var fn  = btn.dataset.fn;
+  var id  = btn.dataset.id;
+  var tab = btn.dataset.tab;
+  if(!id) return;
+  if(fn==='edit') openRecurEdit(id);
+  if(fn==='del')  deleteRecur(id, tab);
+  if(fn==='buy')  markBought(id);
+});
 renderSummary();
 document.getElementById('fab').style.display='none';
 
