@@ -598,15 +598,21 @@ function switchRecurTab(tab){currentRecurTab=tab;document.getElementById('tab-su
 function monthlyEq(item){if(!item.cost)return 0;const c=f(item.cost);if(item.freq==='Weekly')return c*52/12;if(item.freq==='Fortnightly')return c*26/12;if(item.freq==='Annual')return c/12;return c;}
 function renderRecurring(){
   const rec=getRecurring();
+  // Store items globally so onclick handlers can find them by id
+  window._RR={};
+  rec.subs.forEach(function(it){window._RR[it.id]=it;});
+  rec.cons.forEach(function(it){window._RR[it.id]=it;});
+
   let html='';
   if(currentRecurTab==='subs'){
-    const items=[...rec.subs].sort((a,b)=>{
+    const items=[...rec.subs].sort(function(a,b){
       const da=a.due?daysFromToday(new Date(a.due)):9999;
       const db=b.due?daysFromToday(new Date(b.due)):9999;
       return da-db;
     });
-    const mt=items.reduce((s,i)=>s+monthlyEq(i),0);
-    html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span><span class="total-bar-val">'+fmtAUD(mt)+'</span></div>';
+    const mt=items.reduce(function(s,i){return s+monthlyEq(i);},0);
+    html+='<div class="total-bar"><span class="total-bar-label">Monthly Total</span>'
+         +'<span class="total-bar-val">'+fmtAUD(mt)+'</span></div>';
     items.forEach(function(it){
       const days=it.due?daysFromToday(new Date(it.due)):null;
       const uc=days===null?'none':days<=0?'due':days<=7?'soon':'ok';
@@ -615,8 +621,11 @@ function renderRecurring(){
       html+='<div class="recurring-item">'
         +'<div class="urgency-bar '+uc+'"></div>'
         +'<div class="rec-body">'
-          +'<div class="rec-name"><span class="days-badge '+uc+'">'+dl+'</span>'+it.name
-            +'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span></div>'
+          +'<div class="rec-name">'
+            +'<span class="days-badge '+uc+'">'+dl+'</span>'
+            +it.name
+            +'<span class="keep-badge keep-'+it.keep+'">'+it.keep+'</span>'
+          +'</div>'
           +'<div class="rec-meta">'
             +'<span>'+it.freq+(it.cost?' · '+fmtAUD(it.cost):'')+'</span>'
             +(mc?'<span class="rec-monthly-cost">'+fmtAUD(mc)+'/mo</span>':'')
@@ -625,8 +634,8 @@ function renderRecurring(){
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
         +'<div class="rec-actions">'
-          +'<button class="btn-sm ghost" data-id="'+it.id+'" data-fn="edit">Edit</button>'
-          +'<button class="btn-sm red"   data-id="'+it.id+'" data-fn="del" data-tab="subs">✕</button>'
+          +'<button class="btn-sm ghost" onclick="rrEdit(\''+it.id+'\')">Edit</button>'
+          +'<button class="btn-sm red"   onclick="rrDel(\''+it.id+'\',\'subs\')">✕</button>'
         +'</div>'
       +'</div>';
     });
@@ -639,8 +648,10 @@ function renderRecurring(){
     });
     const dft=items.filter(function(i){return i.daysAway!==null&&i.daysAway<=14;})
                    .reduce(function(s,i){return s+f(i.cost);},0);
-    if(dft>0)html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span>'
-      +'<span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
+    if(dft>0){
+      html+='<div class="total-bar"><span class="total-bar-label">Due This Fortnight</span>'
+           +'<span class="total-bar-val" style="color:var(--yellow)">'+fmtAUD(dft)+'</span></div>';
+    }
     items.forEach(function(it){
       const d=it.daysAway;
       const cls=d===null?'none':d<=0?'due':d<=7?'soon':'ok';
@@ -654,23 +665,32 @@ function renderRecurring(){
             +'<span class="cons-cost">'+fmtAUD(it.cost)+'</span>'
           +'</div>'
           +'<div class="cons-row2">'
-            +(it.last?'<span>Last: '+fmtShort(new Date(it.last))+'</span>':'<span style="color:var(--dim)">Tap ✓ to log</span>')
+            +(it.last
+              ?'<span>Last: '+fmtShort(new Date(it.last))+'</span>'
+              :'<span style="color:var(--dim)">Tap ✓ to log</span>')
             +(it.dueDate?'<span>Due: '+fmtShort(it.dueDate)+'</span>':'')
             +'<span style="color:var(--dim)">Lasts '+it.days+'d</span>'
           +'</div>'
           +(it.notes?'<div class="rec-notes-txt">'+it.notes+'</div>':'')
         +'</div>'
         +'<div class="cons-actions">'
-          +'<button class="btn-icon green" data-id="'+it.id+'" data-fn="buy">✓</button>'
-          +'<button class="btn-icon ghost" data-id="'+it.id+'" data-fn="edit">✎</button>'
-          +'<button class="btn-icon red"   data-id="'+it.id+'" data-fn="del" data-tab="cons">✕</button>'
+          +'<button class="btn-icon green" onclick="rrBuy(\''+it.id+'\')">✓</button>'
+          +'<button class="btn-icon ghost" onclick="rrEdit(\''+it.id+'\')">✎</button>'
+          +'<button class="btn-icon red"   onclick="rrDel(\''+it.id+'\',\'cons\')">✕</button>'
         +'</div>'
       +'</div>';
     });
   }
-  if(!html)html='<div class="empty"><div class="empty-icon">↻</div>No items yet. Tap + Add Item.</div>';
+  if(!html){
+    html='<div class="empty"><div class="empty-icon">↻</div>No items yet. Tap + Add Item.</div>';
+  }
   document.getElementById('recurring-body').innerHTML=html;
 }
+
+// Simple named wrappers — these are global functions called directly from onclick
+function rrEdit(id){ openRecurEdit(id); }
+function rrDel(id,tab){ deleteRecur(id,tab); }
+function rrBuy(id){ markBought(id); }
 
 function markBought(id){
   const rec=getRecurring(),item=rec.cons.find(c=>c.id===id);
@@ -768,18 +788,7 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 document.getElementById('fab').addEventListener('click',openQuickAdd);
 buildFnSelect();
 
-// Single document-level handler for all recurring item buttons
-document.addEventListener('click', function(e){
-  var btn = e.target.closest('[data-fn]');
-  if(!btn) return;
-  var fn  = btn.dataset.fn;
-  var id  = btn.dataset.id;
-  var tab = btn.dataset.tab;
-  if(!id) return;
-  if(fn==='edit') openRecurEdit(id);
-  if(fn==='del')  deleteRecur(id, tab);
-  if(fn==='buy')  markBought(id);
-});
+
 renderSummary();
 document.getElementById('fab').style.display='none';
 
