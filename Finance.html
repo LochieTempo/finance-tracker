@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -269,7 +272,7 @@ input[type=number]{-moz-appearance:textfield;}
       </div>
       <div>
         <div class="app-name">AURUM</div>
-        <div class="app-sub">FY 2026–27</div>
+        <div class="app-sub">FY 2026–27 · build 20260630-0309</div>
       </div>
     </div>
   </div>
@@ -649,9 +652,9 @@ function remaining(d){return netIncome(d)-totalExp(d);}
 function rolloverUpTo(fn){let r=0;for(let i=0;i<fn;i++)r+=remaining(getTracker(i));return r;}
 function getTracker(fn){try{return JSON.parse(localStorage.getItem('fn'+fn))||{};}catch{return{};}}
 function setTracker(fn,d){localStorage.setItem('fn'+fn,JSON.stringify(d));}
-function getRecurring(){try{return JSON.parse(localStorage.getItem('rec'))||defaultRecurring();}catch{return defaultRecurring();}}
+function getRecurring(){try{var stored=localStorage.getItem('rec');if(stored)return JSON.parse(stored);var d=defaultRecurring();localStorage.setItem('rec',JSON.stringify(d));return d;}catch(e){return defaultRecurring();}}
 function setRecurring(d){localStorage.setItem('rec',JSON.stringify(d));}
-function getOther(){try{return JSON.parse(localStorage.getItem('other'))||[];}catch{return[];}}
+function getOther(){try{var s=localStorage.getItem('other');return s?JSON.parse(s):[];}catch(e){return[];}}
 function setOther(d){localStorage.setItem('other',JSON.stringify(d));}
 function getGoals(){try{return JSON.parse(localStorage.getItem('goals'))||defaultGoals();}catch{return defaultGoals();}}
 function setGoals(d){localStorage.setItem('goals',JSON.stringify(d));}
@@ -841,9 +844,9 @@ function renderRecurring(){
   document.getElementById('recurring-body').innerHTML=html;
 }
 
-function rrEdit(btn){openRecurEdit(btn.dataset.id);}
+function rrEdit(btn){var id=btn.dataset.id;if(!id){toast('No ID on button');return;}openRecurEdit(id);}
 function rrDel(btn){deleteRecur(btn.dataset.id, btn.dataset.tab);}
-function rrBuy(btn){markBought(btn.dataset.id);}
+function rrBuy(btn){var id=btn.dataset.id;if(!id){toast('No ID on button');return;}markBought(id);}
 
 function markBought(id){
   const rec=getRecurring(),item=rec.cons.find(c=>c.id===id);
@@ -897,7 +900,7 @@ function confirmBought(){
   toast('✓ '+item.name+' — $'+cost.toFixed(2)+' added to Wk '+wk+' Necessities');
 }
 function openRecurModal(){editRecurId=null;document.getElementById('recur-modal-title').textContent='Add Recurring Item';['rec-name','rec-cost','rec-due','rec-notes','rec-cons-cost','rec-cons-days','rec-cons-last'].forEach(id=>document.getElementById(id).value='');document.getElementById('rec-keep').value='YES';document.getElementById('rec-type').value='sub';document.getElementById('rec-freq').value='Monthly';toggleRecurType();openModal('modal-recur');}
-function openRecurEdit(id){const rec=getRecurring(),sub=rec.subs.find(s=>s.id===id),con=rec.cons.find(c=>c.id===id),item=sub||con;if(!item)return;editRecurId=id;document.getElementById('recur-modal-title').textContent='Edit Item';document.getElementById('rec-name').value=item.name;document.getElementById('rec-notes').value=item.notes||'';;if(sub){document.getElementById('rec-type').value='sub';document.getElementById('rec-freq').value=item.freq||'Monthly';document.getElementById('rec-cost').value=item.cost||'';;document.getElementById('rec-due').value=item.due||'';;document.getElementById('rec-keep').value=item.keep||'YES';}else{document.getElementById('rec-type').value='cons';document.getElementById('rec-cons-cost').value=item.cost||'';;document.getElementById('rec-cons-days').value=item.days||'';;document.getElementById('rec-cons-last').value=item.last||'';}toggleRecurType();openModal('modal-recur');}
+function openRecurEdit(id){const rec=getRecurring(),sub=rec.subs.find(s=>s.id===id),con=rec.cons.find(c=>c.id===id),item=sub||con;if(!item){toast('Item not found (ID: '+id+')');return;}editRecurId=id;document.getElementById('recur-modal-title').textContent='Edit Item';document.getElementById('rec-name').value=item.name;document.getElementById('rec-notes').value=item.notes||'';;if(sub){document.getElementById('rec-type').value='sub';document.getElementById('rec-freq').value=item.freq||'Monthly';document.getElementById('rec-cost').value=item.cost||'';;document.getElementById('rec-due').value=item.due||'';;document.getElementById('rec-keep').value=item.keep||'YES';}else{document.getElementById('rec-type').value='cons';document.getElementById('rec-cons-cost').value=item.cost||'';;document.getElementById('rec-cons-days').value=item.days||'';;document.getElementById('rec-cons-last').value=item.last||'';}toggleRecurType();openModal('modal-recur');}
 function toggleRecurType(){const s=document.getElementById('rec-type').value==='sub';document.getElementById('rec-sub-fields').style.display=s?'':' none';document.getElementById('rec-cons-fields').style.display=s?'none':'';;}
 function submitRecur(){const rec=getRecurring(),type=document.getElementById('rec-type').value,name=document.getElementById('rec-name').value.trim();if(!name){toast('Enter a name');return;}if(type==='sub'){const item={id:editRecurId||uid(),name,freq:document.getElementById('rec-freq').value,cost:f(document.getElementById('rec-cost').value)||null,due:document.getElementById('rec-due').value||null,keep:document.getElementById('rec-keep').value,notes:document.getElementById('rec-notes').value.trim()};const idx=rec.subs.findIndex(x=>x.id===editRecurId);if(idx>=0)rec.subs[idx]=item;else rec.subs.push(item);}else{const item={id:editRecurId||uid(),name,cost:f(document.getElementById('rec-cons-cost').value),days:parseInt(document.getElementById('rec-cons-days').value)||30,last:document.getElementById('rec-cons-last').value||null,notes:document.getElementById('rec-notes').value.trim()};const idx=rec.cons.findIndex(x=>x.id===editRecurId);if(idx>=0)rec.cons[idx]=item;else rec.cons.push(item);}setRecurring(rec);closeModal('modal-recur');renderRecurring();toast('Saved');}
 function deleteRecur(id,tab){if(!confirm('Delete this item?'))return;const rec=getRecurring();rec[tab]=rec[tab].filter(i=>i.id!==id);setRecurring(rec);renderRecurring();toast('Deleted');}
