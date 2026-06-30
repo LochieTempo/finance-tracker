@@ -39,6 +39,7 @@ html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--
 .app-name{font-size:14px;font-weight:700;letter-spacing:3.5px;color:var(--gold-l);line-height:1;font-family:var(--mono);}
 .app-sub{font-size:8px;color:var(--dim);letter-spacing:1.5px;margin-top:2px;text-transform:uppercase;}
 nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;padding-bottom:16px;}
+#nav-filler{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;height:60px;background:var(--surface);z-index:99;}
 nav button{flex:1;background:none;border:none;color:var(--dim);padding:8px 0 6px;font-size:9px;font-weight:600;letter-spacing:0.5px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;transition:color 0.15s;-webkit-tap-highlight-color:transparent;}
 nav button .icon{font-size:18px;line-height:1;}
 nav button.active{color:var(--gold);}
@@ -317,6 +318,7 @@ input[type=number]{-moz-appearance:textfield;}
     </div>
     <div id="dashboard-body"></div>
   </div>
+  <div id="nav-filler"></div>
   <nav>
     <button id="nav-summary" class="active" onclick="showPage('summary')"><span class="icon">◈</span>SUMMARY</button>
     <button id="nav-tracker" onclick="showPage('tracker')"><span class="icon">⊞</span>TRACKER</button>
