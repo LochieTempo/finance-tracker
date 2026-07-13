@@ -29,7 +29,7 @@
   --mono:"SF Mono","Fira Code","Consolas",monospace;
 }
 html,body{height:100%;background:var(--bg);color:var(--white);font-family:var(--font);font-size:14px;-webkit-font-smoothing:antialiased;overflow-x:hidden;touch-action:manipulation;-webkit-text-size-adjust:100%;}
-#app{display:flex;flex-direction:column;height:var(--app-height, 100dvh);max-width:480px;margin:0 auto;position:relative;touch-action:manipulation;}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:480px;margin:0 auto;position:relative;touch-action:manipulation;}
 .page{flex:1;overflow-y:auto;padding:12px 14px 88px;display:none;-webkit-overflow-scrolling:touch;touch-action:pan-y;}
 .page.active{display:block;}
 .app-header{padding:calc(12px + env(safe-area-inset-top)) 14px 0;display:flex;align-items:center;justify-content:space-between;touch-action:manipulation;}
@@ -495,20 +495,6 @@ input[type=number]{-moz-appearance:textfield;}
 <div id="toast"></div>
 <script>
 'use strict';
-// ─── REAL VIEWPORT HEIGHT FIX ───────────────────────────────────────────────
-// iOS Safari (especially standalone/Home-Screen mode) sometimes computes
-// 100dvh incorrectly on the very first paint, leaving a gap at the bottom
-// until something forces a reflow. Measure the true height ourselves and
-// drive #app's height from that instead of trusting dvh alone.
-function setAppHeight(){
-  var h=(window.visualViewport&&window.visualViewport.height)||window.innerHeight;
-  document.documentElement.style.setProperty('--app-height', h+'px');
-}
-setAppHeight();
-window.addEventListener('resize', setAppHeight);
-window.addEventListener('orientationchange', setAppHeight);
-if(window.visualViewport){ window.visualViewport.addEventListener('resize', setAppHeight); }
-
 const FY_START=new Date(2026,6,1);const NUM_FN=26;
 function fnStartDate(n){const d=new Date(FY_START);d.setDate(d.getDate()+n*14);return d;}
 function fnEndDate(n){const d=fnStartDate(n);d.setDate(d.getDate()+13);return d;}
@@ -561,8 +547,11 @@ var _F  = {};   // field registry: id -> {fn, lbl}
 function kpBtn(btn, id) {
   var f   = _F[id];
   if (!f) return;
-  var cur = btn.textContent.trim();
-  kpOpen(f.fn, id, f.lbl, cur);
+  // Load the stored expression if there is one, so the user sees e.g.
+  // "110 + 17.50" rather than the flat resolved total "127.50"
+  var data = getTracker(f.fn);
+  var expr = data[id + '_expr'] || btn.textContent.trim();
+  kpOpen(f.fn, id, f.lbl, expr);
 }
 function kpOpen(fn, id, lbl, cur) {
   KP.fn = fn; KP.id = id; KP.lbl = lbl;
@@ -621,8 +610,13 @@ function kpDel() { KP.expr = KP.expr.slice(0, -1); kpRefresh(); }
 function kpDone() {
   var result = kpCalc(KP.expr);
   var val    = result !== null ? result.toFixed(2) : (KP.expr || '');
+  // Save the resolved value to the field
   saveField(KP.fn, KP.id, val);
-  // Update button text
+  // Also save the raw expression so opening the cell again shows the breakdown
+  var data = getTracker(KP.fn);
+  data[KP.id + '_expr'] = KP.expr;
+  setTracker(KP.fn, data);
+  // Update button text to show the resolved total
   var btn = document.getElementById('kpb-' + KP.id);
   if (btn) btn.textContent = val;
   kpClose();
