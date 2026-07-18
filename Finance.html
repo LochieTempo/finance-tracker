@@ -456,7 +456,8 @@ input[type=number]{-moz-appearance:textfield;}
         <span style="font-size:11px;color:var(--silver);letter-spacing:1px;text-transform:uppercase;width:72px;flex-shrink:0">Date</span>
         <input type="date" id="bought-date"
           style="background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);color:var(--white);font-size:14px;padding:6px 10px;outline:none;appearance:none;-webkit-appearance:none"
-          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'">
+          onfocus="this.style.borderColor='var(--gold)'" onblur="this.style.borderColor='var(--border)'"
+          onchange="syncBoughtWeekToDate()">
       </div>
       <div style="display:flex;align-items:center;padding:10px 0">
         <span style="font-size:11px;color:var(--silver);letter-spacing:1px;text-transform:uppercase;width:72px;flex-shrink:0">Week</span>
@@ -543,8 +544,20 @@ function fmtAUD(v){if(v===null||v===undefined||v==='')return'—';const n=parseF
 function daysFromToday(d){if(!d)return null;const dt=typeof d==='string'?new Date(d):new Date(d);const today=new Date();today.setHours(0,0,0,0);dt.setHours(0,0,0,0);return Math.round((dt-today)/86400000);}
 function todayISO(){return new Date().toISOString().split('T')[0];}
 function uid(){return Math.random().toString(36).slice(2,9);}
-function currentFnIndex(){const today=new Date();today.setHours(0,0,0,0);for(let i=NUM_FN-1;i>=0;i--){if(today>=fnStartDate(i))return i;}return 0;}
-function currentWeekOfFn(fn){const today=new Date();today.setHours(0,0,0,0);const w2=new Date(fnStartDate(fn));w2.setDate(w2.getDate()+7);return today>=w2?2:1;}
+function fnIndexForDate(dateInput){
+  var d=(dateInput instanceof Date)?new Date(dateInput):new Date(dateInput);
+  d.setHours(0,0,0,0);
+  for(let i=NUM_FN-1;i>=0;i--){if(d>=fnStartDate(i))return i;}
+  return 0;
+}
+function currentFnIndex(){return fnIndexForDate(new Date());}
+function weekOfFnForDate(fn,dateInput){
+  var d=(dateInput instanceof Date)?new Date(dateInput):new Date(dateInput);
+  d.setHours(0,0,0,0);
+  var w2=new Date(fnStartDate(fn));w2.setDate(w2.getDate()+7);
+  return d>=w2?2:1;
+}
+function currentWeekOfFn(fn){return weekOfFnForDate(fn,new Date());}
 
 
 // ─── CELL FORMULA EVALUATOR ──────────────────────────────────────────────────
@@ -1006,7 +1019,10 @@ function confirmPay(){
   // Route the charge to whichever tracker field this subscription targets
   // (defaults to Recurring Bills, but e.g. Coaching can target its own
   // dedicated field so it stays visible on its own line while being paid off).
-  var fn=currentFnIndex();
+  // Uses the date actually charged — not today — so logging a payment
+  // late (e.g. a few days into the next fortnight) still lands in the
+  // fortnight the charge really happened in.
+  var fn=fnIndexForDate(dateStr);
   var targetField=item.target||'recur_bills';
   logChargeToField(fn, targetField, cost, item.name);
 
@@ -1028,10 +1044,19 @@ function markBought(id){
   document.getElementById('bought-name').textContent=item.name;
   document.getElementById('bought-cost').value=item.cost||'';
   document.getElementById('bought-date').value=todayISO();
-  // Auto-detect week
-  const fn=currentFnIndex(),wk=currentWeekOfFn(fn);
-  setBoughtWeek(wk);
+  // Auto-detect week from today (the default date)
+  syncBoughtWeekToDate();
   openModal('modal-bought');
+}
+// Re-derives which week/fortnight the currently-entered date falls in.
+// Called on open (defaults to today) and whenever the date field changes,
+// so logging a reset a few days late still attributes it to the correct
+// fortnight and week instead of always assuming today.
+function syncBoughtWeekToDate(){
+  const dateStr=document.getElementById('bought-date').value||todayISO();
+  const fn=fnIndexForDate(dateStr);
+  const wk=weekOfFnForDate(fn,dateStr);
+  setBoughtWeek(wk);
 }
 
 function setBoughtWeek(wk){
@@ -1056,8 +1081,10 @@ function confirmBought(){
   item.last=date;
   if(cost>0)item.cost=cost;
   setRecurring(rec);
-  // Log to tracker necessities, preserving the itemised breakdown
-  const fn=currentFnIndex();
+  // Log to tracker necessities, preserving the itemised breakdown.
+  // Derive the fortnight from the ACTUAL reset date, not today — so
+  // logging a reset a few days late lands in the right fortnight.
+  const fn=fnIndexForDate(date);
   const necKey=wk===1?'nec_w1':'nec_w2';
   const notesKey=wk===1?'notes_w1':'notes_w2';
   logChargeToField(fn, necKey, cost, item.name);
