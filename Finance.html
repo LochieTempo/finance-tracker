@@ -679,15 +679,15 @@ const CATS=[
   {id:'gross',label:'Gross Pay',section:'income',type:'input'},
   {id:'tax',label:'Tax Withheld',section:'income',type:'input'},
   {id:'hecs',label:'HECS Withheld',section:'income',type:'input'},
+  {id:'debt_pulled',label:'Borrowed from Savings',section:'income',type:'input'},
   {id:'super',label:'Super (12.75%)',section:'income',type:'calc',fn:d=>+(f(d.gross)*0.1275).toFixed(2)},
-  {id:'net',label:'Net Income',section:'income',type:'calc',fn:d=>f(d.gross)-f(d.tax)-f(d.hecs)},
+  {id:'net',label:'Net Income',section:'income',type:'calc',fn:d=>f(d.gross)-f(d.tax)-f(d.hecs)+f(d.debt_pulled)},
   {id:'rent',label:'Rent + Phone',section:'must',type:'input'},
   {id:'car_sav',label:'Car Savings',section:'must',type:'input'},
   {id:'savings',label:'Bank Savings',section:'must',type:'input'},
   {id:'invested',label:'Stocks / Invested',section:'must',type:'input'},
-  {id:'debt_pulled',label:'Borrowed from Savings',section:'must',type:'input'},
   {id:'payback',label:'Payback / Debt',section:'must',type:'input'},
-  {id:'total_must',label:'Total Must',section:'must',type:'calc',fn:d=>f(d.rent)+f(d.car_sav)+f(d.savings)+f(d.invested)+f(d.payback)-f(d.debt_pulled)},
+  {id:'total_must',label:'Total Must',section:'must',type:'calc',fn:d=>f(d.rent)+f(d.car_sav)+f(d.savings)+f(d.invested)+f(d.payback)},
   {id:'coaching',label:'Coaching',section:'will',type:'input'},
   {id:'recur_bills',label:'Recurring Bills',section:'will',type:'input'},
   {id:'fuel',label:'Fuel',section:'will',type:'input'},
@@ -704,8 +704,8 @@ const CATS=[
   {id:'total_want',label:'Total Want',section:'want',type:'calc',fn:d=>f(d.work_cons)+f(d.add_spend_w1)+f(d.add_spend_w2)+f(d.pokemon_w1)+f(d.pokemon_w2)},
 ];
 function f(v){return parseFloat(v)||0;}
-function netIncome(d){return f(d.gross)-f(d.tax)-f(d.hecs);}
-function totalMust(d){return f(d.rent)+f(d.car_sav)+f(d.savings)+f(d.invested)+f(d.payback)-f(d.debt_pulled);}
+function netIncome(d){return f(d.gross)-f(d.tax)-f(d.hecs)+f(d.debt_pulled);}
+function totalMust(d){return f(d.rent)+f(d.car_sav)+f(d.savings)+f(d.invested)+f(d.payback);}
 function totalWill(d){return f(d.coaching)+f(d.recur_bills)+f(d.fuel)+f(d.grocery_w1)+f(d.grocery_w2)+f(d.nec_w1)+f(d.nec_w2);}
 function totalWant(d){return f(d.work_cons)+f(d.add_spend_w1)+f(d.add_spend_w2)+f(d.pokemon_w1)+f(d.pokemon_w2);}
 function totalExp(d){return totalMust(d)+totalWill(d)+totalWant(d);}
