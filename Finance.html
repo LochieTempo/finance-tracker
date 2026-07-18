@@ -709,6 +709,11 @@ function totalMust(d){return f(d.rent)+f(d.car_sav)+f(d.savings)+f(d.invested)+f
 function totalWill(d){return f(d.coaching)+f(d.recur_bills)+f(d.fuel)+f(d.grocery_w1)+f(d.grocery_w2)+f(d.nec_w1)+f(d.nec_w2);}
 function totalWant(d){return f(d.work_cons)+f(d.add_spend_w1)+f(d.add_spend_w2)+f(d.pokemon_w1)+f(d.pokemon_w2);}
 function totalExp(d){return totalMust(d)+totalWill(d)+totalWant(d);}
+// True out-of-pocket spending — excludes money set aside for the future
+// (car savings, bank savings, stocks/invested). Used only for the Summary
+// page's "Spent This FN" display; does NOT affect the Available Pool math,
+// since that money still leaves your spending account either way.
+function trueExpenses(d){return totalExp(d)-f(d.car_sav)-f(d.savings)-f(d.invested);}
 function remaining(d){return netIncome(d)-totalExp(d);}
 function rolloverUpTo(fn){let r=0;for(let i=0;i<fn;i++)r+=remaining(getTracker(i));return r;}
 function getTracker(fn){try{return JSON.parse(localStorage.getItem('fn'+fn))||{};}catch{return{};}}
@@ -859,7 +864,7 @@ function renderSummary(){
   const fn=currentFnIndex(),data=getTracker(fn),net=netIncome(data),exp=totalExp(data),rem=remaining(data),rollover=rolloverUpTo(fn),pool=rem+rollover,saved=f(data.savings),nw=calcNetWorth();
   const npi=fn+1<NUM_FN?fn+1:fn,nextPay=fnStartDate(npi),daysLeft=daysFromToday(nextPay);
   const rec=getRecurring(),upcoming=rec.subs.filter(s=>s.due).map(s=>({...s,days:daysFromToday(new Date(s.due))})).filter(s=>s.days!==null&&s.days>=-3&&s.days<=30).sort((a,b)=>a.days-b.days).slice(0,6);
-  const goals=getGoals(),spendPct=net>0?Math.min(exp/net*100,100):0,savePct=net>0?(saved/net*100).toFixed(1):null;
+  const invested=f(data.invested),savedTotal=saved+invested;const carSav=f(data.car_sav),trueExp=trueExpenses(data);const goals=getGoals(),spendPct=net>0?Math.min(trueExp/net*100,100):0,savePct=net>0?(savedTotal/net*100).toFixed(1):null;
   var nwOpen=localStorage.getItem('nw_expanded')==='1';
   var html='<div class="nw-hero'+(nwOpen?'':' nw-collapsed')+'" id="nw-hero">'
     +'<div class="nw-toggle-row" onclick="toggleNetWorth()">'
@@ -878,9 +883,9 @@ function renderSummary(){
     +'</div>'
   +'</div>';
   html+='<div class="card gold-left"><div class="card-label">Available Pool · FN '+(fn+1)+' · '+fmtShort(fnStartDate(fn))+' – '+fmtShort(fnEndDate(fn))+'</div><div class="card-value'+(pool<0?' red':'')+'">'+fmtAUD(pool)+'</div><div class="card-sub">Remaining '+fmtAUD(rem)+' + rollover '+fmtAUD(rollover)+'</div></div>';
-  html+='<div class="card-row"><div class="card dim-left"><div class="card-label">Days to Payday</div><div class="card-value white">'+( daysLeft!==null&&daysLeft>=0?daysLeft:0)+'</div><div class="card-sub">'+fmtShort(nextPay)+'</div></div><div class="card green-left"><div class="card-label">Saved This FN</div><div class="card-value green">'+fmtAUD(saved)+'</div><div class="card-sub">'+( savePct?savePct+'% of net income':'Enter income first')+'</div></div></div>';
-  html+='<div class="card-row"><div class="card red-left"><div class="card-label">Spent This FN</div><div class="card-value red">'+fmtAUD(exp)+'</div><div class="card-sub">of '+fmtAUD(net)+' net income</div></div><div class="card dim-left"><div class="card-label">Rollover</div><div class="card-value white">'+fmtAUD(rollover)+'</div><div class="card-sub">from previous FNs</div></div></div>';
-  html+='<div class="card"><div class="card-label" style="margin-bottom:8px">Fortnight Spend vs Income</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--silver);margin-bottom:4px"><span>'+fmtAUD(exp)+' spent</span><span>'+fmtAUD(net)+' income</span></div><div class="progress-track"><div class="progress-fill'+(spendPct>90?' red':spendPct<60?' green':'')+'" style="width:'+spendPct+'%"></div></div></div>';
+  html+='<div class="card-row"><div class="card dim-left"><div class="card-label">Days to Payday</div><div class="card-value white">'+( daysLeft!==null&&daysLeft>=0?daysLeft:0)+'</div><div class="card-sub">'+fmtShort(nextPay)+'</div></div><div class="card green-left"><div class="card-label">Saved This FN</div><div class="card-value green">'+fmtAUD(savedTotal)+'</div><div class="card-sub">'+( savePct?savePct+'% of net income':'Enter income first')+(invested>0?' · '+fmtAUD(invested)+' invested':'')+'</div></div></div>';
+  html+='<div class="card-row"><div class="card red-left"><div class="card-label">Spent This FN</div><div class="card-value red">'+fmtAUD(trueExp)+'</div><div class="card-sub">of '+fmtAUD(net)+' net income'+(carSav>0?' · '+fmtAUD(carSav)+' to car fund':'')+'</div></div><div class="card dim-left"><div class="card-label">Rollover</div><div class="card-value white">'+fmtAUD(rollover)+'</div><div class="card-sub">from previous FNs</div></div></div>';
+  html+='<div class="card"><div class="card-label" style="margin-bottom:8px">Fortnight Spend vs Income</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--silver);margin-bottom:4px"><span>'+fmtAUD(trueExp)+' spent</span><span>'+fmtAUD(net)+' income</span></div><div class="progress-track"><div class="progress-fill'+(spendPct>90?' red':spendPct<60?' green':'')+'" style="width:'+spendPct+'%"></div></div></div>';
   if(upcoming.length>0){html+='<div class="section-label">Upcoming Bills — next 30 days</div><div class="card">';for(const it of upcoming){const cls=it.days<=0?'due':it.days<=7?'soon':'ok',lbl=it.days<=0?'DUE':it.days+'d';html+='<div class="bill-row"><span class="days-badge '+cls+'">'+lbl+'</span><span class="bill-name">'+it.name+'</span><span class="bill-date">'+fmtShort(new Date(it.due))+'</span><span class="bill-cost">'+fmtAUD(it.cost)+'</span></div>';}html+='</div>';}
   html+='<div class="section-label">Savings Goals</div><div class="card">';for(const g of goals){const pct=g.target>0?Math.min(g.current/g.target,1):0;html+='<div class="goal-row"><div class="goal-header"><span class="goal-name">'+g.name+'</span><span class="goal-amounts">'+fmtAUD(g.current)+' / '+fmtAUD(g.target)+'</span></div><div class="progress-track"><div class="progress-fill" style="width:'+(pct*100)+'%"></div></div><div class="goal-footer"><span class="goal-remaining">'+fmtAUD(g.target-g.current)+' to go</span><span class="goal-pct">'+(pct*100).toFixed(0)+'%</span></div></div>';}
   html+='<button class="btn-sm ghost" style="width:100%;margin-top:4px" onclick="openGoalsModal()">Edit Goals</button></div>';
