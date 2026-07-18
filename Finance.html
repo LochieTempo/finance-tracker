@@ -739,18 +739,26 @@ function renderTracker(){
       const p=getTracker(i);
       if(CARRY.some(k=>p[k])){
         const patch={};CARRY.forEach(k=>{if(!data[k]&&p[k])patch[k]=p[k];});
-        data=Object.assign({},data,patch);break;
+        data=Object.assign({},data,patch);
+        // Persist the carried-forward values immediately, not just in memory —
+        // otherwise editing ANY single field later reads fresh from storage
+        // and every other "carried" field silently reverts to blank, wiping
+        // out the section total.
+        setTracker(fn,data);
+        break;
       }
     }
   }
   // Auto-suggest payback: if the immediately previous FN borrowed from savings
-  // and this FN hasn't logged a payback yet, prefill it with that amount.
-  // Editable — this is just a starting suggestion, not locked in.
-  if(fn>0&&!data.payback){
+  // and this FN hasn't logged a payback yet, prefill it with that amount ONCE.
+  // This is persisted immediately so it becomes a real, freely-editable value —
+  // not a suggestion that silently reasserts itself on every render.
+  if(fn>0&&!data.payback&&!data.payback_suggested){
     const prev=getTracker(fn-1);
     const borrowed=f(prev.debt_pulled);
     if(borrowed>0){
-      data=Object.assign({},data,{payback:borrowed.toFixed(2)});
+      data=Object.assign({},data,{payback:borrowed.toFixed(2),payback_suggested:'1'});
+      setTracker(fn,data);
     }
   }
   const rollover=rolloverUpTo(fn),remain=remaining(data),pool=remain+rollover;
@@ -838,7 +846,7 @@ function updateCalcs(fn){
   document.querySelectorAll('.tracker-row input[readonly]').forEach(inp=>{const lbl=inp.closest('.tracker-row')?.querySelector('.tracker-row-label')?.textContent?.trim();if(!lbl)return;if(lbl==='Super (12.75%)')inp.value=fmtAUD(+(f(data.gross)*0.1275).toFixed(2));if(lbl==='Net Income')inp.value=fmtAUD(netIncome(data));if(lbl==='Total Must')inp.value=fmtAUD(totalMust(data));if(lbl==='Total Will')inp.value=fmtAUD(totalWill(data));if(lbl==='Total Want')inp.value=fmtAUD(totalWant(data));if(lbl==='Total Expenses')inp.value=fmtAUD(totalExp(data));if(lbl==='Remaining This FN'){inp.value=fmtAUD(remain);inp.className=inp.className.replace(/val-\w+/g,remain>=0?'val-green':'val-red');}if(lbl==='Rollover from Prev')inp.value=fmtAUD(rollover);if(lbl==='Available Pool')inp.value=fmtAUD(pool);});
 }
 function openQuickAdd(){const fn=currentFnIndex(),wk=currentWeekOfFn(fn);const cat=document.getElementById('qa-cat');cat.value=wk===1?'add_spend_w1':'add_spend_w2';document.getElementById('qa-hint').textContent='Auto-selected Week '+wk+' based on today.';openModal('modal-quickadd');}
-function submitQuickAdd(){const desc=document.getElementById('qa-desc').value.trim(),amount=parseFloat(document.getElementById('qa-amount').value)||0,catKey=document.getElementById('qa-cat').value;if(!desc){toast('Enter a description');return;}if(!amount){toast('Enter an amount');return;}const fn=currentFnIndex(),data=getTracker(fn);data[catKey]=(f(data[catKey])+amount).toFixed(2);const nk=catKey.endsWith('_w1')?'notes_w1':'notes_w2';data[nk]=data[nk]?data[nk]+'. '+desc:desc;setTracker(fn,data);document.getElementById('qa-desc').value='';document.getElementById('qa-amount').value='';closeModal('modal-quickadd');if(currentFn===fn)renderTracker();toast('✓ '+fmtAUD(amount)+' — '+desc);}
+function submitQuickAdd(){const desc=document.getElementById('qa-desc').value.trim(),amount=parseFloat(document.getElementById('qa-amount').value)||0,catKey=document.getElementById('qa-cat').value;if(!desc){toast('Enter a description');return;}if(!amount){toast('Enter an amount');return;}const fn=currentFnIndex();logChargeToField(fn,catKey,amount,desc);const data=getTracker(fn);const nk=catKey.endsWith('_w1')?'notes_w1':'notes_w2';data[nk]=data[nk]?data[nk]+'. '+desc:desc;setTracker(fn,data);document.getElementById('qa-desc').value='';document.getElementById('qa-amount').value='';closeModal('modal-quickadd');if(currentFn===fn)renderTracker();toast('✓ '+fmtAUD(amount)+' — '+desc);}
 function calcNetWorth(){const nw=getNW();const base={savings:f(nw.savings),stocks:f(nw.stocks),pokemon:f(nw.pokemon)};let fySav=0;for(let i=0;i<NUM_FN;i++)fySav+=f(getTracker(i).savings)+f(getTracker(i).invested);return{total:base.savings+base.stocks+base.pokemon+fySav,...base,fySav};}
 function toggleNetWorth(){
   var expanded=localStorage.getItem('nw_expanded')==='1';
