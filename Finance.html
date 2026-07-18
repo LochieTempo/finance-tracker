@@ -677,7 +677,7 @@ function kpDone() {
   // Invested" summary row is shown at all — a full re-render (not just
   // updateCalcs) is needed so that row appears/disappears immediately
   // rather than only after switching fortnights and back.
-  if((KP.id==='car_sav'||KP.id==='savings'||KP.id==='invested')&&KP.fn===currentFn){
+  if((KP.id==='car_sav'||KP.id==='savings'||KP.id==='invested'||KP.id==='payback')&&KP.fn===currentFn){
     renderTracker();
   }
 }
@@ -720,7 +720,10 @@ function totalExp(d){return totalMust(d)+totalWill(d)+totalWant(d);}
 // (car savings, bank savings, stocks/invested). Used only for the Summary
 // page's "Spent This FN" display; does NOT affect the Available Pool math,
 // since that money still leaves your spending account either way.
-function trueExpenses(d){return totalExp(d)-f(d.car_sav)-f(d.savings)-f(d.invested);}
+// Payback/Debt is money moving back INTO savings to restore a previous
+// fortnight's withdrawal — it's a savings-type transfer, not a genuine
+// expense, exactly like Car Fund, Bank Savings, or Invested.
+function trueExpenses(d){return totalExp(d)-f(d.car_sav)-f(d.savings)-f(d.invested)-f(d.payback);}
 function remaining(d){return netIncome(d)-totalExp(d);}
 function rolloverUpTo(fn){let r=0;for(let i=0;i<fn;i++)r+=remaining(getTracker(i));return r;}
 function getTracker(fn){try{return JSON.parse(localStorage.getItem('fn'+fn))||{};}catch{return{};}}
@@ -814,7 +817,7 @@ function renderTracker(){
   }
   html+='</div>';
 
-  const savedInvested=f(data.car_sav)+f(data.savings)+f(data.invested);
+  const savedInvested=f(data.car_sav)+f(data.savings)+f(data.invested)+f(data.payback);
   html+='<div class="summary-strip"><div class="tracker-section-hdr summary"><span>SUMMARY</span></div>'
        +'<div class="tracker-row total-row"><span class="tracker-row-label">Total Expenses</span><input class="w-input single val-red" readonly value="'+fmtAUD(trueExpenses(data))+'"></div>'
        +(savedInvested>0?'<div class="tracker-row total-row"><span class="tracker-row-label">Saved / Invested</span><input class="w-input single val-green" readonly value="'+fmtAUD(savedInvested)+'"></div>':'')
@@ -857,7 +860,7 @@ function logChargeToField(fn, fieldId, amount, label){
 function updateCalcs(fn){
   const data=getTracker(fn),rollover=rolloverUpTo(fn),remain=remaining(data),pool=remain+rollover;
   document.querySelectorAll('.tracker-section-hdr').forEach(h=>{const c=h.classList[1],sp=h.querySelector('span:last-child');if(!sp)return;if(c==='income')sp.textContent=fmtAUD(netIncome(data));if(c==='must')sp.textContent=fmtAUD(totalMust(data));if(c==='will')sp.textContent=fmtAUD(totalWill(data));if(c==='want')sp.textContent=fmtAUD(totalWant(data));});
-  document.querySelectorAll('.tracker-row input[readonly]').forEach(inp=>{const lbl=inp.closest('.tracker-row')?.querySelector('.tracker-row-label')?.textContent?.trim();if(!lbl)return;if(lbl==='Super (12.75%)')inp.value=fmtAUD(+(f(data.gross)*0.1275).toFixed(2));if(lbl==='Net Income')inp.value=fmtAUD(netIncome(data));if(lbl==='Total Must')inp.value=fmtAUD(totalMust(data));if(lbl==='Total Will')inp.value=fmtAUD(totalWill(data));if(lbl==='Total Want')inp.value=fmtAUD(totalWant(data));if(lbl==='Total Expenses')inp.value=fmtAUD(trueExpenses(data));if(lbl==='Saved / Invested')inp.value=fmtAUD(f(data.car_sav)+f(data.savings)+f(data.invested));if(lbl==='Remaining This FN'){inp.value=fmtAUD(remain);inp.className=inp.className.replace(/val-\w+/g,remain>=0?'val-green':'val-red');}if(lbl==='Rollover from Prev')inp.value=fmtAUD(rollover);if(lbl==='Available Pool')inp.value=fmtAUD(pool);});
+  document.querySelectorAll('.tracker-row input[readonly]').forEach(inp=>{const lbl=inp.closest('.tracker-row')?.querySelector('.tracker-row-label')?.textContent?.trim();if(!lbl)return;if(lbl==='Super (12.75%)')inp.value=fmtAUD(+(f(data.gross)*0.1275).toFixed(2));if(lbl==='Net Income')inp.value=fmtAUD(netIncome(data));if(lbl==='Total Must')inp.value=fmtAUD(totalMust(data));if(lbl==='Total Will')inp.value=fmtAUD(totalWill(data));if(lbl==='Total Want')inp.value=fmtAUD(totalWant(data));if(lbl==='Total Expenses')inp.value=fmtAUD(trueExpenses(data));if(lbl==='Saved / Invested')inp.value=fmtAUD(f(data.car_sav)+f(data.savings)+f(data.invested)+f(data.payback));if(lbl==='Remaining This FN'){inp.value=fmtAUD(remain);inp.className=inp.className.replace(/val-\w+/g,remain>=0?'val-green':'val-red');}if(lbl==='Rollover from Prev')inp.value=fmtAUD(rollover);if(lbl==='Available Pool')inp.value=fmtAUD(pool);});
 }
 function openQuickAdd(){const fn=currentFnIndex(),wk=currentWeekOfFn(fn);const cat=document.getElementById('qa-cat');cat.value=wk===1?'add_spend_w1':'add_spend_w2';document.getElementById('qa-hint').textContent='Auto-selected Week '+wk+' based on today.';openModal('modal-quickadd');}
 function submitQuickAdd(){const desc=document.getElementById('qa-desc').value.trim(),amount=parseFloat(document.getElementById('qa-amount').value)||0,catKey=document.getElementById('qa-cat').value;if(!desc){toast('Enter a description');return;}if(!amount){toast('Enter an amount');return;}const fn=currentFnIndex();logChargeToField(fn,catKey,amount,desc);const data=getTracker(fn);const nk=catKey.endsWith('_w1')?'notes_w1':'notes_w2';data[nk]=data[nk]?data[nk]+'. '+desc:desc;setTracker(fn,data);document.getElementById('qa-desc').value='';document.getElementById('qa-amount').value='';closeModal('modal-quickadd');if(currentFn===fn)renderTracker();toast('✓ '+fmtAUD(amount)+' — '+desc);}
@@ -873,7 +876,7 @@ function renderSummary(){
   const fn=currentFnIndex(),data=getTracker(fn),net=netIncome(data),exp=totalExp(data),rem=remaining(data),rollover=rolloverUpTo(fn),pool=rem+rollover,saved=f(data.savings),nw=calcNetWorth();
   const npi=fn+1<NUM_FN?fn+1:fn,nextPay=fnStartDate(npi),daysLeft=daysFromToday(nextPay);
   const rec=getRecurring(),upcoming=rec.subs.filter(s=>s.due).map(s=>({...s,days:daysFromToday(new Date(s.due))})).filter(s=>s.days!==null&&s.days>=-3&&s.days<=30).sort((a,b)=>a.days-b.days).slice(0,6);
-  const invested=f(data.invested),carSav=f(data.car_sav),savedTotal=saved+invested+carSav;const trueExp=trueExpenses(data);const goals=getGoals(),spendPct=net>0?Math.min(trueExp/net*100,100):0,savePct=net>0?(savedTotal/net*100).toFixed(1):null;
+  const invested=f(data.invested),carSav=f(data.car_sav),payback=f(data.payback),savedTotal=saved+invested+carSav+payback;const trueExp=trueExpenses(data);const goals=getGoals(),spendPct=net>0?Math.min(trueExp/net*100,100):0,savePct=net>0?(savedTotal/net*100).toFixed(1):null;
   var nwOpen=localStorage.getItem('nw_expanded')==='1';
   var html='<div class="nw-hero'+(nwOpen?'':' nw-collapsed')+'" id="nw-hero">'
     +'<div class="nw-toggle-row" onclick="toggleNetWorth()">'
@@ -892,7 +895,7 @@ function renderSummary(){
     +'</div>'
   +'</div>';
   html+='<div class="card gold-left"><div class="card-label">Available Pool · FN '+(fn+1)+' · '+fmtShort(fnStartDate(fn))+' – '+fmtShort(fnEndDate(fn))+'</div><div class="card-value'+(pool<0?' red':'')+'">'+fmtAUD(pool)+'</div><div class="card-sub">Remaining '+fmtAUD(rem)+' + rollover '+fmtAUD(rollover)+'</div></div>';
-  html+='<div class="card-row"><div class="card dim-left"><div class="card-label">Days to Payday</div><div class="card-value white">'+( daysLeft!==null&&daysLeft>=0?daysLeft:0)+'</div><div class="card-sub">'+fmtShort(nextPay)+'</div></div><div class="card green-left"><div class="card-label">Saved This FN</div><div class="card-value green">'+fmtAUD(savedTotal)+'</div><div class="card-sub">'+( savePct?savePct+'% of net income':'Enter income first')+(invested>0?' · '+fmtAUD(invested)+' invested':'')+(carSav>0?' · '+fmtAUD(carSav)+' car fund':'')+'</div></div></div>';
+  html+='<div class="card-row"><div class="card dim-left"><div class="card-label">Days to Payday</div><div class="card-value white">'+( daysLeft!==null&&daysLeft>=0?daysLeft:0)+'</div><div class="card-sub">'+fmtShort(nextPay)+'</div></div><div class="card green-left"><div class="card-label">Saved This FN</div><div class="card-value green">'+fmtAUD(savedTotal)+'</div><div class="card-sub">'+( savePct?savePct+'% of net income':'Enter income first')+(invested>0?' · '+fmtAUD(invested)+' invested':'')+(carSav>0?' · '+fmtAUD(carSav)+' car fund':'')+(payback>0?' · '+fmtAUD(payback)+' payback':'')+'</div></div></div>';
   html+='<div class="card-row"><div class="card red-left"><div class="card-label">Spent This FN</div><div class="card-value red">'+fmtAUD(trueExp)+'</div><div class="card-sub">of '+fmtAUD(net)+' net income</div></div><div class="card dim-left"><div class="card-label">Rollover</div><div class="card-value white">'+fmtAUD(rollover)+'</div><div class="card-sub">from previous FNs</div></div></div>';
   html+='<div class="card"><div class="card-label" style="margin-bottom:8px">Fortnight Spend vs Income</div><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--silver);margin-bottom:4px"><span>'+fmtAUD(trueExp)+' spent</span><span>'+fmtAUD(net)+' income</span></div><div class="progress-track"><div class="progress-fill'+(spendPct>90?' red':spendPct<60?' green':'')+'" style="width:'+spendPct+'%"></div></div></div>';
   if(upcoming.length>0){html+='<div class="section-label">Upcoming Bills — next 30 days</div><div class="card">';for(const it of upcoming){const cls=it.days<=0?'due':it.days<=7?'soon':'ok',lbl=it.days<=0?'DUE':it.days+'d';html+='<div class="bill-row"><span class="days-badge '+cls+'">'+lbl+'</span><span class="bill-name">'+it.name+'</span><span class="bill-date">'+fmtShort(new Date(it.due))+'</span><span class="bill-cost">'+fmtAUD(it.cost)+'</span></div>';}html+='</div>';}
@@ -1138,7 +1141,7 @@ function submitOther(){const desc=document.getElementById('oth-desc').value.trim
 function deleteOther(id){if(!confirm('Delete?'))return;setOther(getOther().filter(i=>i.id!==id));renderOther();toast('Deleted');}
 function renderDashboard(){
   const fn=currentFnIndex(),labels=[],netArr=[],expArr=[],savArr=[],rateArr=[];
-  for(let i=0;i<=fn;i++){const d=getTracker(i),net=netIncome(d),exp=trueExpenses(d),sav=f(d.savings)+f(d.invested)+f(d.car_sav);if(net===0&&exp===0&&sav===0)continue;labels.push('FN'+(i+1));netArr.push(parseFloat(net.toFixed(2)));expArr.push(parseFloat(exp.toFixed(2)));savArr.push(parseFloat(sav.toFixed(2)));rateArr.push(net>0?parseFloat((sav/net*100).toFixed(1)):0);}
+  for(let i=0;i<=fn;i++){const d=getTracker(i),net=netIncome(d),exp=trueExpenses(d),sav=f(d.savings)+f(d.invested)+f(d.car_sav)+f(d.payback);if(net===0&&exp===0&&sav===0)continue;labels.push('FN'+(i+1));netArr.push(parseFloat(net.toFixed(2)));expArr.push(parseFloat(exp.toFixed(2)));savArr.push(parseFloat(sav.toFixed(2)));rateArr.push(net>0?parseFloat((sav/net*100).toFixed(1)):0);}
   const tn=netArr.reduce((a,b)=>a+b,0),te=expArr.reduce((a,b)=>a+b,0),ts=savArr.reduce((a,b)=>a+b,0),ar=rateArr.length?(rateArr.reduce((a,b)=>a+b,0)/rateArr.length).toFixed(1):0,nw=calcNetWorth();
   let html='<div class="stat-grid"><div class="stat-tile"><div class="stat-tile-label">Net Worth</div><div class="stat-tile-val">'+fmtAUD(nw.total)+'</div></div><div class="stat-tile"><div class="stat-tile-label">FY Saved</div><div class="stat-tile-val green">'+fmtAUD(ts)+'</div></div><div class="stat-tile"><div class="stat-tile-label">FY Earned</div><div class="stat-tile-val green">'+fmtAUD(tn)+'</div></div><div class="stat-tile"><div class="stat-tile-label">FY Spent</div><div class="stat-tile-val red">'+fmtAUD(te)+'</div></div><div class="stat-tile"><div class="stat-tile-label">Avg Save Rate</div><div class="stat-tile-val">'+ar+'%</div></div><div class="stat-tile"><div class="stat-tile-label">FNs Tracked</div><div class="stat-tile-val">'+labels.length+' / '+NUM_FN+'</div></div></div>';
   if(!labels.length){html+='<div class="empty"><div class="empty-icon">&#x25c9;</div>Enter data in Tracker to see charts.</div>';document.getElementById('dashboard-body').innerHTML=html;return;}
@@ -1148,7 +1151,7 @@ function renderDashboard(){
   const gc='#1d1d1d',tc='#555',bs={x:{ticks:{color:tc,font:{size:9}},grid:{color:gc}},y:{ticks:{color:tc,font:{size:9},callback:v=>'$'+v.toLocaleString()},grid:{color:gc}}};
   charts.income=new Chart(document.getElementById('chart-income'),{type:'bar',data:{labels,datasets:[{label:'Net Income',data:netArr,backgroundColor:'rgba(46,204,113,0.55)',borderColor:'#2ecc71',borderWidth:1,borderRadius:3},{label:'Expenses',data:expArr,backgroundColor:'rgba(231,76,60,0.55)',borderColor:'#e74c3c',borderWidth:1,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#777',font:{size:10},boxWidth:10}}},scales:bs}});
   charts.rate=new Chart(document.getElementById('chart-rate'),{type:'line',data:{labels,datasets:[{label:'Savings Rate %',data:rateArr,borderColor:'#c9a84c',backgroundColor:'rgba(201,168,76,0.08)',tension:0.35,fill:true,pointBackgroundColor:'#c9a84c',pointRadius:3}]},options:{responsive:true,maintainAspectRatio:true,plugins:{legend:{labels:{color:'#777',font:{size:10},boxWidth:10}}},scales:{x:bs.x,y:{...bs.y,ticks:{color:tc,font:{size:9},callback:v=>v+'%'}}}}});
-  const d=getTracker(fn),cdefs=[{label:'Rent+Phone',val:f(d.rent)},{label:'Payback/Debt',val:f(d.payback)},{label:'Coaching',val:f(d.coaching)},{label:'Recur. Bills',val:f(d.recur_bills)},{label:'Fuel',val:f(d.fuel)},{label:'Groceries',val:f(d.grocery_w1)+f(d.grocery_w2)},{label:'Necessities',val:f(d.nec_w1)+f(d.nec_w2)},{label:'Work Cons.',val:f(d.work_cons)},{label:'Add. Spending',val:f(d.add_spend_w1)+f(d.add_spend_w2)},{label:'Pokémon',val:f(d.pokemon_w1)+f(d.pokemon_w2)}].filter(c=>c.val>0);
+  const d=getTracker(fn),cdefs=[{label:'Rent+Phone',val:f(d.rent)},{label:'Coaching',val:f(d.coaching)},{label:'Recur. Bills',val:f(d.recur_bills)},{label:'Fuel',val:f(d.fuel)},{label:'Groceries',val:f(d.grocery_w1)+f(d.grocery_w2)},{label:'Necessities',val:f(d.nec_w1)+f(d.nec_w2)},{label:'Work Cons.',val:f(d.work_cons)},{label:'Add. Spending',val:f(d.add_spend_w1)+f(d.add_spend_w2)},{label:'Pokémon',val:f(d.pokemon_w1)+f(d.pokemon_w2)}].filter(c=>c.val>0);
   const pal=['#c9a84c','#e8c87a','#7a5f1e','#2ecc71','#1a7a45','#5b9bd5','#e74c3c','#f39c12','#888','#555','#f59e0b'];
   charts.cat=new Chart(document.getElementById('chart-cat'),{type:'doughnut',data:{labels:cdefs.map(c=>c.label),datasets:[{data:cdefs.map(c=>c.val),backgroundColor:pal.slice(0,cdefs.length),borderColor:'#111',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:true,cutout:'60%',plugins:{legend:{position:'bottom',labels:{color:'#777',font:{size:9},boxWidth:10,padding:10}}}}});
 }
